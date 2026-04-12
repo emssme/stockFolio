@@ -7,7 +7,7 @@
 - Backend : Spring Boot, Spring Security, JPA
 - Frontend : React
 - DB : MySQL, Redis
-- 배포 : GCP
+- 배포 : GCP(Google Cloud Platform)
 - 실시간 : WebSocket
 
 ## 핵심 기능
