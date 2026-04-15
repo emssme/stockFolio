@@ -101,7 +101,7 @@ idx_assets_type_ticker(asset_type, ticker) / idx_assets_deleted_at(deleted_at)
 | traded_at | DATETIME | NOT NULL | 실제 매매 일시 |
 | created_at | DATETIME | NOT NULL | |
 | created_ip | VARCHAR(45) | NULL | |
-| updated_at | DATETIME | NOT NULL | 불변 레코드, 컬럼 표준화 |
+| updated_at | DATETIME | NOT NULL | |
 | updated_ip | VARCHAR(45) | NULL | |
 
 ```
@@ -122,9 +122,9 @@ PK(id) / idx_trade_asset_id(asset_id) / idx_trade_user_traded_at(user_id, traded
 | total_profit | DECIMAL(18,4) | NOT NULL | |
 | total_profit_rate | DECIMAL(12,4) | NOT NULL | 코인 고수익 대응 |
 | snapshot_at | DATETIME | NOT NULL | 비즈니스 기준 시각 |
-| created_at | DATETIME | NOT NULL | 실제 INSERT 시각 (배치 지연 고려) |
-| created_ip | VARCHAR(45) | NULL | 배치 실행 시 NULL |
-| updated_at | DATETIME | NOT NULL | 불변 레코드, 컬럼 표준화 |
+| created_at | DATETIME | NOT NULL | |
+| created_ip | VARCHAR(45) | NULL | |
+| updated_at | DATETIME | NOT NULL | |
 | updated_ip | VARCHAR(45) | NULL | |
 
 ```
