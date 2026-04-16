@@ -1,0 +1,34 @@
+spring:
+  # DB
+  datasource:
+    url: jdbc:mariadb://localhost:3306/stockfolio?characterEncoding=UTF-8
+    username: root
+    password: 1234
+    driver-class-name: org.mariadb.jdbc.Driver
+
+  # JPA (로컬에서는 create-drop 또는 update 사용 가능)
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Redis
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:      # Redis 비밀번호 설정 시 입력 (없으면 빈 칸)
+
+# JWT
+jwt:
+  secret: kJ3mN8pQ2rT5vX0yA1bD4eG7hI6jL9oR2sU5wY8zA1cE4fH7kM0nP3qS6tV9x==
+
+# 로깅 (로컬에서는 SQL 확인)
+logging:
+  level:
+    com.stockfolio: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.orm.jdbc.bind: TRACE

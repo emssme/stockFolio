@@ -1,0 +1,43 @@
+spring:
+  application:
+    name: stockfolio
+
+  profiles:
+    active: local
+
+  # JPA
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        default_batch_fetch_size: 100
+
+  # Redis
+  data:
+    redis:
+      timeout: 2000
+
+# JWT
+jwt:
+  expiration:
+    access: 1800      # 30분 (초)
+    refresh: 604800   # 7일 (초)
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info
+  endpoint:
+    health:
+      show-details: never
+
+# 로깅
+logging:
+  level:
+    com.stockfolio: INFO
+    org.hibernate.SQL: OFF
