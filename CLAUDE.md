@@ -6,7 +6,7 @@
 ## 기술 스택
 - Backend : Spring Boot, Spring Security, JPA
 - Frontend : React
-- DB : MySQL, Redis
+- DB : MariaDB, Redis
 - 배포 : GCP(Google Cloud Platform)
 - 실시간 : WebSocket
 
@@ -19,5 +19,5 @@
 
 ## 개발 환경
 - Java 17
-- MySQL 8.0
+- MariaDB 11.0.2
 - IDE : IntelliJ, VSCode
