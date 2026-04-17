@@ -9,7 +9,7 @@ DB: MariaDB 11.0.2
 
 | 테이블 | 역할 |
 |--------|------|
-| users | 회원 계정. 소프트 삭제 적용 |
+| users | 회원 계정. |
 | refresh_tokens | JWT Refresh Token 저장. 기기별 로그아웃 지원 |
 | assets | 사용자 보유 자산 (국내주식 / 해외주식 / 코인). 소프트 삭제 적용 |
 | trade_history | 자산별 매수/매도 이력. 수정·삭제 없는 불변 레코드 |
@@ -32,10 +32,9 @@ DB: MariaDB 11.0.2
 | created_ip | VARCHAR(45) | NULL | IPv6 대응, 내부 처리 시 NULL |
 | updated_at | DATETIME | NOT NULL | UTC |
 | updated_ip | VARCHAR(45) | NULL | |
-| deleted_at | DATETIME | NULL | NULL = 활성 |
 
 ```
-PK(id) / UNIQUE(email) / idx_users_deleted_at(deleted_at)
+PK(id)
 ```
 
 ---
@@ -155,10 +154,7 @@ CREATE TABLE users (
     created_ip  VARCHAR(45)  NULL,
     updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     updated_ip  VARCHAR(45)  NULL,
-    deleted_at  DATETIME     NULL,
-    PRIMARY KEY (id),
-    UNIQUE INDEX uq_users_email (email),
-    INDEX idx_users_deleted_at (deleted_at)
+    PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
