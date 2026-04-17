@@ -963,7 +963,6 @@ Client                        Server
 | `INSUFFICIENT_QUANTITY` | 매도 수량이 보유 수량 초과 | 400 |
 | `UNAUTHORIZED` | 인증 토큰 없음 | 401 |
 | `INVALID_CREDENTIALS` | 이메일 또는 비밀번호 불일치 | 401 |
-| `ACCOUNT_DELETED` | 탈퇴한 계정으로 로그인 시도 | 401 |
 | `WRONG_PASSWORD` | 현재 비밀번호 불일치 | 401 |
 | `INVALID_REFRESH_TOKEN` | 유효하지 않거나 만료된 Refresh Token | 401 |
 | `REFRESH_TOKEN_REUSED` | 이미 사용된 Refresh Token (재사용 공격) | 401 |
@@ -974,4 +973,4 @@ Client                        Server
 | `DUPLICATE_EMAIL` | 이미 사용 중인 이메일 | 409 |
 | `INTERNAL_SERVER_ERROR` | 서버 내부 오류 | 500 |
 | `EXTERNAL_API_ERROR` | 외부 시세 API 호출 실패 | 500 |
-| `INVALID_TICKER` | 존재하지 않는 종목 코드 (WebSocket) | — |
+| `INVALID_TICKER` | 존재하지 않는 종목 코드 (WebSocket) | 0 |
