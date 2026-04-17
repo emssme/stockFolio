@@ -1,7 +1,7 @@
 # StockFolio ERD
 
 작성일: 2026-04-13  
-DB: MySQL 8.0
+DB: MariaDB 11.0.2
 
 ---
 
