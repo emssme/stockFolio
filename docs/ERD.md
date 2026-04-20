@@ -151,7 +151,7 @@ PK(id) / idx_snapshots_user_snapshot_at(user_id, snapshot_at)
 ## DDL
 
 ```sql
-CREATE TABLE users (
+CREATE TABLE user (
     id          BIGINT       NOT NULL AUTO_INCREMENT,
     email       VARCHAR(255) NOT NULL,
     password    VARCHAR(255) NOT NULL,
