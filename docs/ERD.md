@@ -9,7 +9,7 @@ DB: MariaDB 11.0.2
 
 | 테이블 | 역할 |
 |--------|------|
-| users | 회원 계정. |
+| users | 회원 계정. 탈퇴 시 개인정보 익명화 + 소프트 삭제 적용 |
 | refresh_tokens | JWT Refresh Token 저장. 기기별 로그아웃 지원 |
 | assets | 사용자 보유 자산 (국내주식 / 해외주식 / 코인). 소프트 삭제 적용 |
 | trade_history | 자산별 매수/매도 이력. 수정·삭제 없는 불변 레코드 |
@@ -24,17 +24,24 @@ DB: MariaDB 11.0.2
 | 컬럼명 | 타입 | 제약조건 | 비고 |
 |--------|------|----------|------|
 | id | BIGINT | PK, AUTO_INCREMENT | |
-| email | VARCHAR(255) | UNIQUE, NOT NULL | |
-| password | VARCHAR(255) | NOT NULL | bcrypt |
-| nickname | VARCHAR(50) | NOT NULL | |
+| email | VARCHAR(255) | UNIQUE, NOT NULL | 탈퇴 시 `deleted_{id}@unknown.com`으로 익명화 |
+| password | VARCHAR(255) | NOT NULL | bcrypt. 탈퇴 시 `DELETED`로 대체 |
+| nickname | VARCHAR(50) | NOT NULL | 탈퇴 시 `탈퇴한 사용자`로 대체 |
 | role | ENUM('USER','ADMIN') | NOT NULL, DEFAULT 'USER' | |
 | created_at | DATETIME | NOT NULL | UTC |
 | created_ip | VARCHAR(45) | NULL | IPv6 대응, 내부 처리 시 NULL |
 | updated_at | DATETIME | NOT NULL | UTC |
 | updated_ip | VARCHAR(45) | NULL | |
+| deleted_at | DATETIME | NULL | NULL = 활성. 탈퇴 시 현재 시각 기록 |
+
+> **탈퇴 처리 정책**: 개인정보보호법 준수를 위해 완전 삭제 대신 익명화 방식 적용.
+> email / password / nickname 을 식별 불가 값으로 대체 후 `deleted_at` 기록.
+> 연관 테이블(assets, trade_history 등) FK 참조 무결성 유지를 위해 레코드는 보존.
+> Refresh Token은 탈퇴 즉시 삭제.
+> 익명화 후 30일이 경과한 레코드는 배치 작업으로 완전 삭제.
 
 ```
-PK(id)
+PK(id) / UNIQUE(email) / idx_users_deleted_at(deleted_at)
 ```
 
 ---
@@ -154,7 +161,10 @@ CREATE TABLE users (
     created_ip  VARCHAR(45)  NULL,
     updated_at  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     updated_ip  VARCHAR(45)  NULL,
-    PRIMARY KEY (id)
+    deleted_at  DATETIME     NULL,  -- NULL = 활성. 탈퇴 시 익명화 후 기록
+    PRIMARY KEY (id),
+    UNIQUE INDEX uq_users_email (email),
+    INDEX idx_users_deleted_at (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
