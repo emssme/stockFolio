@@ -6,8 +6,11 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.stockfolio.global.exception.ErrorCode;
 import com.stockfolio.global.exception.GlobalException;
+import com.stockfolio.global.jwt.JwtProvider;
 import com.stockfolio.user.repository.UserRepository;
 import com.stockfolio.user.domain.User;
+import com.stockfolio.user.dto.LoginRequest;
+import com.stockfolio.user.dto.LoginResponse;
 import com.stockfolio.user.dto.SignUpRequest;
 import com.stockfolio.user.dto.SignUpResponse;
 
@@ -20,6 +23,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JwtProvider jwtProvider;
 
     public SignUpResponse signup(SignUpRequest request) {
         // 이메일 중복 확인
@@ -39,6 +43,20 @@ public class UserService {
         // 저장 후 응답 반환
         User savedUser = userRepository.save(user);
         return SignUpResponse.from(savedUser);
+    }
+
+    public LoginResponse login(LoginRequest req) {
+        User user = userRepository.findByEmailAndDeletedAtIsNull(req.getEmail())
+                .orElseThrow(() -> new GlobalException(ErrorCode.INVALID_CREDENTIALS));
+        
+        if (!passwordEncoder.matches(req.getPassword(), user.getPassword())) {
+            throw new GlobalException(ErrorCode.INVALID_CREDENTIALS);
+        }
+
+        String accessToken = jwtProvider.generateAccessToken(user.getId(), user.getEmail());
+        String refreshToken = jwtProvider.generateRefreshToken(user.getId());
+
+        return LoginResponse.of(accessToken, refreshToken);
     }
 }
 
