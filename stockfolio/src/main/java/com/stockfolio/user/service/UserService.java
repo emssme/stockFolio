@@ -13,6 +13,7 @@ import com.stockfolio.user.dto.LoginRequest;
 import com.stockfolio.user.dto.LoginResponse;
 import com.stockfolio.user.dto.SignUpRequest;
 import com.stockfolio.user.dto.SignUpResponse;
+import com.stockfolio.user.dto.UserResponse;
 
 import lombok.RequiredArgsConstructor;
 
@@ -57,6 +58,12 @@ public class UserService {
         String refreshToken = jwtProvider.generateRefreshToken(user.getId());
 
         return LoginResponse.of(accessToken, refreshToken);
+    }
+
+    public UserResponse getMe(Long userId) { 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GlobalException(ErrorCode.USER_NOT_FOUND));
+        return UserResponse.from(user);
     }
 }
 
