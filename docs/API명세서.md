@@ -970,6 +970,7 @@ Client                        Server
 | `FORBIDDEN` | 타 사용자 리소스 접근 시도 | 403 |
 | `ASSET_NOT_FOUND` | 존재하지 않는 자산 | 404 |
 | `USER_NOT_FOUND` | 존재하지 않는 사용자 | 404 |
+| `DUPLICATE_ASSET` | 이미 등록된 자산 | 409 |
 | `DUPLICATE_EMAIL` | 이미 사용 중인 이메일 | 409 |
 | `INTERNAL_SERVER_ERROR` | 서버 내부 오류 | 500 |
 | `EXTERNAL_API_ERROR` | 외부 시세 API 호출 실패 | 500 |
