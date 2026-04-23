@@ -16,6 +16,7 @@ import com.stockfolio.user.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
+
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
@@ -34,4 +35,5 @@ public class AuthController {
         LoginResponse res = userService.login(req);
         return ResponseEntity.ok(ApiResponse.success(res));
     }
+
 }
