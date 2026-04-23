@@ -20,6 +20,7 @@ public enum ErrorCode {
     USER_NOT_FOUND(404, "사용자 정보 없음"),
     ASSET_NOT_FOUND(404, "자산 정보 없음"),
     DUPLICATE_EMAIL(409, "이미 사용 중인 이메일"),
+    DUPLICATE_ASSET(409, "이미 등록된 자산"),
     INTERNAL_SERVER_ERROR(500, "서버 내부 오류"),
     EXTERNAL_API_ERROR(500, "외부 API 통신 오류"),
     INVALID_TICKER(0, "존재하지 않는 종목 코드");
