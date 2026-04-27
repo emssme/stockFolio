@@ -57,6 +57,8 @@ public class UserService {
         String accessToken = jwtProvider.generateAccessToken(user.getId(), user.getEmail());
         String refreshToken = jwtProvider.generateRefreshToken(user.getId());
 
+        jwtProvider.saveRefreshToken(user.getId(), refreshToken);
+
         return LoginResponse.of(accessToken, refreshToken);
     }
 
@@ -64,6 +66,34 @@ public class UserService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GlobalException(ErrorCode.USER_NOT_FOUND));
         return UserResponse.from(user);
+    }
+
+    public void logout(Long userId) {
+        jwtProvider.deleteRefreshToken(userId);
+    }
+
+    public LoginResponse reissue(String refreshToken) {
+        jwtProvider.validateToken(refreshToken);
+
+        Long userId = jwtProvider.getUserIdFromToken(refreshToken);
+        String storedRefreshToken = jwtProvider.getRefreshToken(userId);
+
+        if (storedRefreshToken == null) {
+            throw new GlobalException(ErrorCode.INVALID_REFRESH_TOKEN);  // 로그아웃된 상태
+        }
+        if (!storedRefreshToken.equals(refreshToken)) {
+            throw new GlobalException(ErrorCode.REFRESH_TOKEN_REUSED);   // 재사용 공격
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new GlobalException(ErrorCode.USER_NOT_FOUND));
+
+        String newAccessToken = jwtProvider.generateAccessToken(user.getId(), user.getEmail());
+        String newRefreshToken = jwtProvider.generateRefreshToken(user.getId());
+
+        jwtProvider.saveRefreshToken(user.getId(), newRefreshToken);
+
+        return LoginResponse.of(newAccessToken, newRefreshToken);
     }
 }
 
