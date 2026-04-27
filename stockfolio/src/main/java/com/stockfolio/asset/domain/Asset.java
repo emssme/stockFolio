@@ -67,4 +67,13 @@ public class Asset {
     private String updatedIp;
 
     private LocalDateTime deletedAt;
+
+    public void update(BigDecimal quantity, BigDecimal avgPurchasePrice) {
+        this.quantity = quantity;
+        this.avgPurchasePrice = avgPurchasePrice;
+    }
+
+    public void delete() {
+        this.deletedAt = LocalDateTime.now();
+    }
 }
