@@ -28,6 +28,7 @@ dependencies {
 	runtimeOnly("org.mariadb.jdbc:mariadb-java-client:3.3.3")
 	implementation("org.flywaydb:flyway-mysql:10.10.0")
 	annotationProcessor("org.projectlombok:lombok")
+	annotationProcessor("org.springframework.boot:spring-boot-configuration-processor")
 	testImplementation("org.springframework.boot:spring-boot-starter-test")
 	testImplementation("org.springframework.security:spring-security-test")
 	testCompileOnly("org.projectlombok:lombok")
