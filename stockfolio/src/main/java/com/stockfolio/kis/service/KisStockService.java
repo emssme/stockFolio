@@ -67,4 +67,46 @@ public class KisStockService {
 
         return new BigDecimal(priceStr);
     }
+
+    public BigDecimal getOverseasCurrentPrice(String ticker, String exchange) {
+                // Redis 캐시 확인
+        String cached = redisTemplate.opsForValue().get("kis:price:overseas:" + exchange + ":" + ticker);
+        if (cached != null) {
+            return new BigDecimal(cached);
+        }
+
+        // API 호출
+        BigDecimal price = fetchOverSeasCurrentPrice(ticker, exchange);
+
+        // Redis 저장 (TTL 10초)
+        redisTemplate.opsForValue()
+            .set("kis:price:overseas:" + exchange + ":" + ticker, price.toString(), 10, TimeUnit.SECONDS);
+
+        return price;
+    }
+
+        private BigDecimal fetchOverSeasCurrentPrice(String ticker, String exchange) {
+
+        Map<String, Object> response = restClient.get()
+            .uri(kisProperties.getBaseUrl() 
+                + "/uapi/overseas-price/v1/quotations/price"
+                + "?EXCD=" + exchange
+                + "&SYMB=" + ticker)
+            .header("authorization", "Bearer " + kisTokenService.getAccessToken())
+            .header("appkey", kisProperties.getAppKey())
+            .header("appsecret", kisProperties.getAppSecret())
+            .header("tr_id", "HHDFS00000300")
+            .retrieve()
+            .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+        Map<String, Object> output = (Map<String, Object>) response.get("output");  // ✅ output 먼저
+        if (output == null) throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+
+        String priceStr = (String) output.get("last");
+        if (priceStr == null || priceStr.isBlank()) {
+            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+        }
+
+        return new BigDecimal(priceStr);
+    }
 }

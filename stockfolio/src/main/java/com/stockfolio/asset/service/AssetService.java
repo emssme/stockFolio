@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import com.stockfolio.asset.domain.Asset;
+import com.stockfolio.asset.domain.AssetType;
 import com.stockfolio.asset.dto.AssetRequest;
 import com.stockfolio.asset.dto.AssetResponse;
 import com.stockfolio.asset.dto.AssetUpdateRequest;
@@ -31,6 +32,12 @@ public class AssetService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new GlobalException(ErrorCode.USER_NOT_FOUND));
         
+        // STOCK_US는 거래소 필수
+        if (req.getAssetType() == AssetType.STOCK_US && 
+            (req.getExchange() == null || req.getExchange().isBlank())) {
+            throw new GlobalException(ErrorCode.INVALID_INPUT);
+        }
+
         // 중복 등록 확인
         boolean assetExists = assetRepository.existsByUserIdAndAssetTypeAndTickerAndDeletedAtIsNull (
                 userId, req.getAssetType(), req.getTicker());
@@ -48,6 +55,7 @@ public class AssetService {
                 .currency(req.getCurrency())
                 .quantity(req.getQuantity())
                 .avgPurchasePrice(req.getAvgPurchasePrice())
+                .exchange(req.getExchange())
                 .build());
 
         // 자산 등록 로직 추가

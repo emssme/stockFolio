@@ -40,7 +40,7 @@ public class PortfolioService {
     private BigDecimal getCurrentPrice(Asset asset) {
         return switch (asset.getAssetType()) {
             case STOCK_KR -> kisStockService.getCurrentPrice(asset.getTicker());
-            case STOCK_US -> BigDecimal.ZERO;  // 추후 Finnhub 연동
+            case STOCK_US -> kisStockService.getOverseasCurrentPrice(asset.getTicker(), asset.getExchange());
             case CRYPTO   -> BigDecimal.ZERO;  // 추후 Binance 연동
         };
     }
