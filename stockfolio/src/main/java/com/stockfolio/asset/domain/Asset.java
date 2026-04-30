@@ -35,6 +35,9 @@ public class Asset {
     @Column(nullable = false)
     private AssetType assetType;
 
+    // 거래소
+    private String exchange;
+
     // 티커
     @Column(nullable = false)
     private String ticker;
