@@ -11,6 +11,7 @@ import com.stockfolio.asset.dto.AssetRequest;
 import com.stockfolio.asset.dto.AssetResponse;
 import com.stockfolio.asset.dto.AssetUpdateRequest;
 import com.stockfolio.asset.repository.AssetRepository;
+import com.stockfolio.binance.BinanceWebSocketService;
 import com.stockfolio.global.exception.ErrorCode;
 import com.stockfolio.global.exception.GlobalException;
 import com.stockfolio.user.domain.User;
@@ -26,6 +27,7 @@ public class AssetService {
 
     private final AssetRepository assetRepository;
     private final UserRepository userRepository;
+    private final BinanceWebSocketService binanceWebSocketService;
 
     public AssetResponse registerAsset(Long userId, AssetRequest req) {
         // 자산 등록
@@ -38,9 +40,16 @@ public class AssetService {
             throw new GlobalException(ErrorCode.INVALID_INPUT);
         }
 
+        String ticker = req.getTicker();  // 기본값
+        if (req.getAssetType() == AssetType.CRYPTO) {
+            ticker = req.getTicker().toUpperCase() + "USDT";
+            binanceWebSocketService.subscribe(ticker);  
+        }
+
+
         // 중복 등록 확인
         boolean assetExists = assetRepository.existsByUserIdAndAssetTypeAndTickerAndDeletedAtIsNull (
-                userId, req.getAssetType(), req.getTicker());
+                userId, req.getAssetType(),ticker);
 
         if (assetExists) {
             throw new GlobalException(ErrorCode.DUPLICATE_ASSET);
@@ -50,7 +59,7 @@ public class AssetService {
         Asset savedAsset = assetRepository.save(Asset.builder()
                 .user(user)
                 .assetType(req.getAssetType())
-                .ticker(req.getTicker())
+                .ticker(ticker)
                 .name(req.getName())
                 .currency(req.getCurrency())
                 .quantity(req.getQuantity())
