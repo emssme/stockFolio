@@ -38,4 +38,6 @@ public class AssetRequest {
     @NotNull(message = "평균 단가를 입력해주세요.")
     @Positive(message = "평균단가는 양수여야 합니다.")
     private BigDecimal avgPurchasePrice;
+
+    private String exchange;
 }
