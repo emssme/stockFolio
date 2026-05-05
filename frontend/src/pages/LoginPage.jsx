@@ -8,7 +8,7 @@ function LoginPage() {
         try {
             const userData = await login(values.email, values.password);
             // 로그인 성공 시 accessToken을 localStorage에 저장
-            localStorage.setItem('accessToken', userData.accessToken);
+            localStorage.setItem('accessToken', userData.data.accessToken);
             // 로그인 성공 후 포트폴리오 페이지로 이동
             navigate('/portfolio');
         } catch (error) {
