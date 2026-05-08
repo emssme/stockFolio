@@ -37,7 +37,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter{
         }
 
         // 토큰 검증
-        jwtProvider.validateToken(token);
+        try {
+            jwtProvider.validateToken(token);
+        } catch (Exception e) {
+            filterChain.doFilter(req, res);
+            return;
+        }
+
 
         // userId 추출 → SecurityContext 등록
         Long userId = jwtProvider.getUserIdFromToken(token);
