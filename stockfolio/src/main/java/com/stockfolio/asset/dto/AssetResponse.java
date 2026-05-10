@@ -24,6 +24,7 @@ public class AssetResponse {
     private Currency currency;
     private BigDecimal quantity;
     private BigDecimal avgPurchasePrice;
+    private String brokerage;
 
     public static AssetResponse from(Asset asset) {
         return AssetResponse.builder()
@@ -34,6 +35,7 @@ public class AssetResponse {
                 .currency(asset.getCurrency())
                 .quantity(asset.getQuantity())
                 .avgPurchasePrice(asset.getAvgPurchasePrice())
+                .brokerage(asset.getBrokerage())
                 .build();
     }
 }
