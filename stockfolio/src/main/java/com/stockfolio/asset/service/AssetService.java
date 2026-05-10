@@ -65,6 +65,7 @@ public class AssetService {
                 .quantity(req.getQuantity())
                 .avgPurchasePrice(req.getAvgPurchasePrice())
                 .exchange(req.getExchange())
+                .brokerage(req.getBrokerage())
                 .build());
 
         // 자산 등록 로직 추가
@@ -103,7 +104,7 @@ public class AssetService {
         }
         
         // 수정된 값으로 엔티티 업데이트
-        asset.update(req.getQuantity(), req.getAvgPurchasePrice());
+        asset.update(req.getQuantity(), req.getAvgPurchasePrice(), req.getBrokerage());
 
         return AssetResponse.from(asset);
     }
