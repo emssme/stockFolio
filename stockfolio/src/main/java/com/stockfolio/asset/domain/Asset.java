@@ -54,6 +54,8 @@ public class Asset {
 
     private BigDecimal  avgPurchasePrice;
 
+    private String brokerage;
+
     // 생성 일시
     @CreatedDate
     @Column(updatable = false)
@@ -71,9 +73,10 @@ public class Asset {
 
     private LocalDateTime deletedAt;
 
-    public void update(BigDecimal quantity, BigDecimal avgPurchasePrice) {
+    public void update(BigDecimal quantity, BigDecimal avgPurchasePrice, String brokerage) {
         this.quantity = quantity;
         this.avgPurchasePrice = avgPurchasePrice;
+        this.brokerage = brokerage;
     }
 
     public void delete() {
