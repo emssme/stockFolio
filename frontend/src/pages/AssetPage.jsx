@@ -50,6 +50,7 @@ function AssetPage() {
         { title: '종류', dataIndex: 'assetType' },
         { title: '수량', dataIndex: 'quantity' },
         { title: '평균단가', dataIndex: 'avgPurchasePrice', render: v => Number(v).toLocaleString() },
+        { title: '증권사', dataIndex: 'brokerage', render: v => v || '-' },
         {
             title: '관리',
             render: (_, record) => (
@@ -94,6 +95,9 @@ function AssetPage() {
                             <Select.Option value="STOCK_US">해외주식</Select.Option>
                             <Select.Option value="CRYPTO">코인</Select.Option>
                         </Select>
+                    </Form.Item>
+                    <Form.Item name="brokerage" label="증권사" rules={[{ required: false }]}>
+                        <Input />
                     </Form.Item>
                     <Form.Item name="ticker" label="티커" rules={[{ required: true }]}>
                         <Input />
