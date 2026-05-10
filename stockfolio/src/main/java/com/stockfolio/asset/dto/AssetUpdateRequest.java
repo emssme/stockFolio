@@ -21,4 +21,6 @@ public class AssetUpdateRequest {
     @NotNull(message = "매수 가격은 필수입니다.")
     @Positive(message = "매수 가격은 양수여야 합니다.")
     private BigDecimal avgPurchasePrice;
+
+    private String brokerage;
 }
