@@ -55,6 +55,7 @@ function PortfolioPage() {
                 return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate}%</span>;
             }
         },
+        { title: '증권사', dataIndex: 'brokerage', render: v => v || '-' },
     ];
 
     const pieData = data.map(a => ({ name: a.name, value: Number(a.currentValue) }));
