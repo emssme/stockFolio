@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Table, Button, Modal, Form, Input, Select, InputNumber } from 'antd';
+import { Table, Button, Modal, Form, Input, Select, InputNumber, Card, Space, Typography, Popconfirm } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
 import { getAssets, createAsset, updateAsset, deleteAsset } from '../api/assetApi';
+
+const { Title } = Typography;
 
 function AssetPage() {
     const [assets, setAssets] = useState([]);
@@ -12,36 +15,33 @@ function AssetPage() {
         getAssets().then(res => setAssets(res.data));
     }, []);
 
+    const refreshAssets = () => getAssets().then(res => setAssets(res.data));
 
     const handleOpenCreate = () => {
-        // 등록 모달 열기
         form.resetFields();
         setIsModalOpen(true);
         setEditingAsset(null);
     };
 
     const handleOpenEdit = (asset) => {
-        // 수정 모달 열기
         form.setFieldsValue(asset);
         setIsModalOpen(true);
         setEditingAsset(asset);
     };
 
     const handleDelete = async (id) => {
-        // 삭제
         await deleteAsset(id);
-        await getAssets().then(res => setAssets(res.data));
+        await refreshAssets();
     };
 
     const handleSubmit = async (values) => {
-        // 등록 또는 수정 분기
-        if(editingAsset == null) {
+        if (editingAsset == null) {
             await createAsset(values);
         } else {
             await updateAsset(editingAsset.id, values);
         }
         setIsModalOpen(false);
-        await getAssets().then(res => setAssets(res.data));
+        await refreshAssets();
     };
 
     const columns = [
@@ -49,29 +49,43 @@ function AssetPage() {
         { title: '티커', dataIndex: 'ticker' },
         { title: '종류', dataIndex: 'assetType' },
         { title: '수량', dataIndex: 'quantity' },
-        { title: '평균단가', dataIndex: 'avgPurchasePrice' },
+        { title: '평균단가', dataIndex: 'avgPurchasePrice', render: v => Number(v).toLocaleString() },
         {
             title: '관리',
             render: (_, record) => (
-                <>
-                    <Button onClick={() => handleOpenEdit(record)}>수정</Button>
-                    <Button danger onClick={() => handleDelete(record.id)}>삭제</Button>
-                </>
+                <Space>
+                    <Button size="small" onClick={() => handleOpenEdit(record)}>수정</Button>
+                    <Popconfirm
+                        title="정말 삭제하시겠습니까?"
+                        onConfirm={() => handleDelete(record.id)}
+                        okText="삭제"
+                        cancelText="취소"
+                    >
+                        <Button size="small" danger>삭제</Button>
+                    </Popconfirm>
+                </Space>
             ),
         },
     ];
 
     return (
         <>
-            <Button type="primary" onClick={handleOpenCreate}>자산 등록</Button>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                <Title level={4} style={{ margin: 0 }}>자산 관리</Title>
+                <Button type="primary" icon={<PlusOutlined />} onClick={handleOpenCreate}>자산 등록</Button>
+            </div>
 
-            <Table dataSource={assets} columns={columns} rowKey="id" />
+            <Card>
+                <Table dataSource={assets} columns={columns} rowKey="id" pagination={{ pageSize: 10 }} scroll={{ x: 'max-content' }} />
+            </Card>
 
             <Modal
                 title={editingAsset ? '자산 수정' : '자산 등록'}
                 open={isModalOpen}
                 onOk={() => form.submit()}
                 onCancel={() => setIsModalOpen(false)}
+                okText={editingAsset ? '수정' : '등록'}
+                cancelText="취소"
             >
                 <Form form={form} onFinish={handleSubmit} layout="vertical">
                     <Form.Item name="assetType" label="자산 종류" rules={[{ required: true }]}>
