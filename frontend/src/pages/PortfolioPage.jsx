@@ -47,6 +47,15 @@ function PortfolioPage() {
         { title: '현재가', dataIndex: 'currentPrice', render: v => Number(v).toLocaleString() },
         { title: '평가금액', dataIndex: 'currentValue', render: v => Number(v).toLocaleString() },
         {
+            title: '전일대비',
+            dataIndex: 'priceChangeRate',
+            render: v => {
+                const rate = Number(v);
+                const color = rate >= 0 ? '#cf1322' : '#3f8600';
+                return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate.toFixed(2)}%</span>;
+            }
+        },
+        {
             title: '수익률',
             dataIndex: 'profitRate',
             render: v => {
@@ -56,6 +65,7 @@ function PortfolioPage() {
             }
         },
         { title: '증권사', dataIndex: 'brokerage', render: v => v || '-' },
+        
     ];
 
     const pieData = data.map(a => ({ name: a.name, value: Number(a.currentValue) }));
