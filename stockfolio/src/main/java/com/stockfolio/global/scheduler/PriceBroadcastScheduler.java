@@ -8,15 +8,23 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
+import com.stockfolio.asset.repository.AssetRepository;
+import com.stockfolio.kis.service.KisStockService;
+
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Component
 @EnableScheduling
 @RequiredArgsConstructor
+@Slf4j
 public class PriceBroadcastScheduler {
 
     private final SimpMessagingTemplate messagingTemplate;
     private final RedisTemplate<String, String> redisTemplate;
+    private final AssetRepository assetRepository;
+    private final KisStockService kisStockService;
+
     
     @Scheduled(fixedDelay = 3000)
     public void broadcastPrices() {
@@ -48,5 +56,21 @@ public class PriceBroadcastScheduler {
                 messagingTemplate.convertAndSend("/topic/price/" + ticker, price);
             }
         }
+    }
+
+    @Scheduled(fixedDelay = 8000)
+    public void refreshKisPrices() {
+        assetRepository.findAllByDeletedAtIsNull().forEach(asset -> {
+            try {
+                switch (asset.getAssetType()) {
+                    case STOCK_KR -> kisStockService.getCurrentPrice(asset.getTicker());
+                    case STOCK_US -> kisStockService.getOverseasCurrentPrice(
+                        asset.getTicker(), asset.getExchange());
+                    default -> {}
+                }
+            } catch (Exception e) {
+                log.warn("KIS 가격 갱신 실패: {} - {}", asset.getTicker(), e.getMessage());
+            }
+        });
     }
 }
