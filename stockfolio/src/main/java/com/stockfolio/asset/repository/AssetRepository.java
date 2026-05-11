@@ -19,5 +19,7 @@ public interface AssetRepository extends JpaRepository<Asset, Long> {
     // 중복등록방지
     boolean existsByUserIdAndAssetTypeAndTickerAndDeletedAtIsNull(Long userId, AssetType assetType, String ticker);
 
-     List<Asset> findAllByAssetTypeAndDeletedAtIsNull(AssetType assetType);
+    List<Asset> findAllByAssetTypeAndDeletedAtIsNull(AssetType assetType);
+
+    List<Asset> findAllByDeletedAtIsNull();
 }

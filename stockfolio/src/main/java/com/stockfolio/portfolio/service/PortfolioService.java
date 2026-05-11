@@ -31,7 +31,8 @@ public class PortfolioService {
         List<PortfolioAssetResponse> assetResponses = assets.stream()
             .map(asset -> {
                 BigDecimal currentPrice = getCurrentPrice(asset);
-                return PortfolioAssetResponse.of(asset, currentPrice);
+                BigDecimal priceChangeRate = getPriceChangeRate(asset);
+                return PortfolioAssetResponse.of(asset, currentPrice, priceChangeRate);
             })
             .collect(Collectors.toList());
 
@@ -44,6 +45,14 @@ public class PortfolioService {
             case STOCK_KR -> kisStockService.getCurrentPrice(asset.getTicker());
             case STOCK_US -> kisStockService.getOverseasCurrentPrice(asset.getTicker(), asset.getExchange());
             case CRYPTO   -> binanceWebSocketService.getPrice(asset.getTicker());
+        };
+    }
+
+    private BigDecimal getPriceChangeRate(Asset asset) {
+        return switch (asset.getAssetType()) {
+            case STOCK_KR -> kisStockService.getDomesticPriceChangeRate(asset.getTicker());
+            case STOCK_US -> kisStockService.getOverseasPriceChangeRate(asset.getTicker(), asset.getExchange());
+            case CRYPTO   -> binanceWebSocketService.getPriceChangeRate(asset.getTicker());
         };
     }
 

@@ -27,8 +27,9 @@ public class PortfolioAssetResponse {
     private BigDecimal currentValue;
     private BigDecimal profit;
     private BigDecimal profitRate;
+    private BigDecimal priceChangeRate;
 
-    public static PortfolioAssetResponse of(Asset asset, BigDecimal currentPrice) {
+    public static PortfolioAssetResponse of(Asset asset, BigDecimal currentPrice, BigDecimal priceChangeRate) {
         BigDecimal purchaseAmount = asset.getQuantity().multiply(asset.getAvgPurchasePrice());
         BigDecimal currentValue = currentPrice.multiply(asset.getQuantity());
         BigDecimal profit = currentValue.subtract(purchaseAmount);
@@ -48,6 +49,7 @@ public class PortfolioAssetResponse {
                 .currentValue(currentValue)
                 .profit(profit)
                 .profitRate(profitRate)
+                .priceChangeRate(priceChangeRate)
                 .build();
     }
 }
