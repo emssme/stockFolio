@@ -85,7 +85,7 @@ public class KisStockService {
         return price;
     }
 
-        private BigDecimal fetchOverSeasCurrentPrice(String ticker, String exchange) {
+    private BigDecimal fetchOverSeasCurrentPrice(String ticker, String exchange) {
 
         Map<String, Object> response = restClient.get()
             .uri(kisProperties.getBaseUrl() 
@@ -108,5 +108,73 @@ public class KisStockService {
         }
 
         return new BigDecimal(priceStr);
+    }
+
+    public BigDecimal getDomesticPriceChangeRate(String ticker) {
+        String cached = redisTemplate.opsForValue().get("kis:change:" + ticker);
+        if (cached != null) {
+            return new BigDecimal(cached);
+        }
+
+        Map<String, Object> response = restClient.get()
+            .uri(kisProperties.getBaseUrl()
+                + "/uapi/domestic-stock/v1/quotations/inquire-price"
+                + "?fid_cond_mrkt_div_code=J"
+                + "&fid_input_iscd=" + ticker)
+            .header("authorization", "Bearer " + kisTokenService.getAccessToken())
+            .header("appkey", kisProperties.getAppKey())
+            .header("appsecret", kisProperties.getAppSecret())
+            .header("tr_id", "FHKST01010100")
+            .retrieve()
+            .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+        Map<String, Object> output = (Map<String, Object>) response.get("output");
+        if (output == null) {
+            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+        }
+
+        String changeRateStr = (String) output.get("prdy_ctrt");
+        if (changeRateStr == null || changeRateStr.isBlank()) {
+            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+        }
+
+        redisTemplate.opsForValue()
+            .set("kis:change:" + ticker, changeRateStr, 10, TimeUnit.SECONDS);
+
+        return new BigDecimal(changeRateStr);
+    }
+
+    public BigDecimal getOverseasPriceChangeRate(String ticker, String exchange) {
+        String cached = redisTemplate.opsForValue().get("kis:change:overseas:" + exchange + ":" + ticker);
+        if (cached != null) {
+            return new BigDecimal(cached);
+        }
+
+        Map<String, Object> response = restClient.get()
+            .uri(kisProperties.getBaseUrl()
+                + "/uapi/overseas-price/v1/quotations/price"
+                + "?EXCD=" + exchange
+                + "&SYMB=" + ticker)
+            .header("authorization", "Bearer " + kisTokenService.getAccessToken())
+            .header("appkey", kisProperties.getAppKey())
+            .header("appsecret", kisProperties.getAppSecret())
+            .header("tr_id", "HHDFS00000300")
+            .retrieve()
+            .body(new ParameterizedTypeReference<Map<String, Object>>() {});
+
+        Map<String, Object> output = (Map<String, Object>) response.get("output");
+        if (output == null) {
+            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+        }
+
+        String changeRateStr = (String) output.get("rate");
+        if (changeRateStr == null || changeRateStr.isBlank()) {
+            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+        }
+
+        redisTemplate.opsForValue()
+            .set("kis:change:overseas:" + exchange + ":" + ticker, changeRateStr, 10, TimeUnit.SECONDS);
+
+        return new BigDecimal(changeRateStr);
     }
 }

@@ -52,13 +52,24 @@ public class BinanceWebSocketService  {
                     new TypeReference<Map<String, Object>>() {}
                 );
 
-                // 현재가 추출
                 String price = (String) data.get("c");
+                String open  = (String) data.get("o");
 
-                // Redis 저장
                 if (price != null) {
                     redisTemplate.opsForValue()
                         .set("binance:price:" + symbol, price, 60, TimeUnit.SECONDS);
+                }
+
+                if (price != null && open != null) {
+                    BigDecimal c = new BigDecimal(price);
+                    BigDecimal o = new BigDecimal(open);
+                    if (o.compareTo(BigDecimal.ZERO) != 0) {
+                        BigDecimal changeRate = c.subtract(o)
+                            .divide(o, 4, java.math.RoundingMode.HALF_UP)
+                            .multiply(BigDecimal.valueOf(100));
+                        redisTemplate.opsForValue()
+                            .set("binance:change:" + symbol, changeRate.toString(), 60, TimeUnit.SECONDS);
+                    }
                 }
             }
         }, url);
@@ -68,9 +79,17 @@ public class BinanceWebSocketService  {
     public BigDecimal getPrice(String symbol) {
         String price = redisTemplate.opsForValue().get("binance:price:" + symbol);
         if (price == null) {
-            return BigDecimal.ZERO;  // 아직 수신 전
+            return BigDecimal.ZERO;
         }
         return new BigDecimal(price);
+    }
+
+    public BigDecimal getPriceChangeRate(String symbol) {
+        String changeRate = redisTemplate.opsForValue().get("binance:change:" + symbol);
+        if (changeRate == null) {
+            return BigDecimal.ZERO;
+        }
+        return new BigDecimal(changeRate);
     }
 
 }
