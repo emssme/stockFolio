@@ -40,27 +40,19 @@ function PortfolioPage() {
     const totalProfitRate = totalCost > 0 ? ((totalValue - totalCost) / totalCost * 100).toFixed(2) : 0;
 
     const columns = [
-        { title: '자산명', dataIndex: 'name' },
         { title: '티커', dataIndex: 'ticker' },
-        { title: '수량', dataIndex: 'quantity' },
-        { title: '평균단가', dataIndex: 'avgPurchasePrice', render: v => Number(v).toLocaleString() },
-        { title: '현재가', dataIndex: 'currentPrice', render: v => Number(v).toLocaleString() },
-        { title: '평가금액', dataIndex: 'currentValue', render: v => Number(v).toLocaleString() },
-        {
-            title: '전일대비',
-            dataIndex: 'priceChangeRate',
-            render: v => {
-                const rate = Number(v);
-                const color = rate >= 0 ? '#cf1322' : '#3f8600';
-                return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate.toFixed(2)}%</span>;
-            }
-        },
+        { title: '자산명', dataIndex: 'name' },
+        { title: '수량', dataIndex: 'quantity', align: 'right' },
+        { title: '평균단가', dataIndex: 'avgPurchasePrice', align: 'right', render: v => Number(v).toLocaleString() },
+        { title: '현재가', dataIndex: 'currentPrice', align: 'right', render: v => Number(v).toLocaleString() },
+        { title: '평가금액', dataIndex: 'currentValue', align: 'right', render: v => Number(v).toLocaleString() },
         {
             title: '수익률',
             dataIndex: 'profitRate',
+            align: 'right',
             render: v => {
                 const rate = Number(v);
-                const color = rate >= 0 ? '#cf1322' : '#3f8600';
+                const color = rate >= 0 ? '#cf1322' : '#000d86';
                 return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate}%</span>;
             }
         },
@@ -70,7 +62,7 @@ function PortfolioPage() {
 
     const pieData = data.map(a => ({ name: a.name, value: Number(a.currentValue) }));
     const barData = data.map(a => ({ name: a.name, 수익률: Number(a.profitRate) }));
-    const getColor = (index, total) => `hsl(${(index * 360) / total}, 65%, 55%)`;
+    const getColor = (index, total) => `hsl(${(index * 360) / total}, 65%, 65%)`;
 
     return (
         <>
@@ -110,22 +102,20 @@ function PortfolioPage() {
                 </Col>
             </Row>
 
-            <Card style={{ marginBottom: 24 }}>
-                <Table dataSource={data} columns={columns} rowKey="ticker" pagination={false} scroll={{ x: 'max-content' }} />
-            </Card>
-
-            <Row gutter={[16, 16]}>
+            <Row gutter={[16, 16]} style={{ marginBottom: 24 }}>
                 <Col xs={24} lg={12}>
                     <Card title="자산 비중">
-                        <ResponsiveContainer width="100%" height={280}>
+                        <ResponsiveContainer width="100%" height={260 + Math.ceil(pieData.length / 4) * 24}>
                             <PieChart>
-                                <Legend layout="vertical" verticalAlign="middle" align="right" iconSize={10} wrapperStyle={{ paddingLeft: '20px' }} />
+                                <Legend layout="horizontal" verticalAlign="bottom" align="center" iconSize={10} formatter={v => <span style={{ color: '#000000' }}>{v}</span>} />
                                 <Pie
                                     data={pieData}
                                     dataKey="value"
                                     nameKey="name"
-                                    innerRadius={70}
-                                    outerRadius={100}
+                                    cx="50%"
+                                    cy="43%"
+                                    innerRadius="40%"
+                                    outerRadius="80%"
                                 >
                                     {pieData.map((_, index) => (
                                         <Cell key={index} fill={getColor(index, pieData.length)} />
@@ -138,11 +128,24 @@ function PortfolioPage() {
                 </Col>
                 <Col xs={24} lg={12}>
                     <Card title="종목별 수익률">
-                        <ResponsiveContainer width="100%" height={280}>
+                        <ResponsiveContainer width="100%" height={260 + Math.ceil(barData.length / 4) * 24}>
                             <BarChart data={barData}>
-                                <XAxis dataKey="name" />
+                                <XAxis dataKey="name" tick={false} height={0} />
                                 <YAxis unit="%" />
                                 <Tooltip formatter={v => v + '%'} />
+                                <Legend
+                                    verticalAlign="bottom"
+                                    content={() => (
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', paddingTop: 8 }}>
+                                            {barData.map((item, index) => (
+                                                <span key={index} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12 }}>
+                                                    <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: '50%', background: getColor(index, barData.length) }} />
+                                                    {item.name}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                />
                                 <Bar dataKey="수익률">
                                     {barData.map((_, index) => (
                                         <Cell key={index} fill={getColor(index, barData.length)} />
@@ -153,6 +156,10 @@ function PortfolioPage() {
                     </Card>
                 </Col>
             </Row>
+            
+            <Card style={{ marginBottom: 24 }}>
+                <Table dataSource={data} columns={columns} rowKey="ticker" pagination={false} scroll={{ x: 'max-content' }} />
+            </Card>
         </>
     );
 }
