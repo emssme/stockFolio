@@ -56,16 +56,6 @@ function PortfolioPage() {
                 return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate}%</span>;
             }
         },
-        {
-            title: '전일대비',
-            dataIndex: 'priceChangeRate',
-            align: 'right',
-            render: v => {
-                const rate = Number(v);
-                const color = rate >= 0 ? '#cf1322' : '#000d86';
-                return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate.toFixed(2)}%</span>;
-            }
-        },
         { title: '증권사', dataIndex: 'brokerage', render: v => v || '-' },
         
     ];

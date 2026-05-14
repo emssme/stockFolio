@@ -40,4 +40,6 @@ public class AssetRequest {
     private BigDecimal avgPurchasePrice;
 
     private String exchange;
+
+    private String brokerage;
 }
