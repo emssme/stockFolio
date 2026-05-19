@@ -2,8 +2,7 @@ import { useEffect, useState } from 'react';
 import { Table, Card, Row, Col, Statistic } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
 import { getPortfolio } from '../api/portfolioApi';
-import SockJS from 'sockjs-client';
-import { Stomp } from '@stomp/stompjs';
+import { Client } from '@stomp/stompjs';
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
 function PortfolioPage() {
@@ -18,21 +17,22 @@ function PortfolioPage() {
     useEffect(() => {
         if (data.length === 0) return;
 
-        const socket = new SockJS('http://localhost:8080/ws');
-        const client = Stomp.over(socket);
-
-        client.connect({}, () => {
-            data.forEach(asset => {
-                client.subscribe(`/topic/price/${asset.ticker}`, (msg) => {
-                    const price = msg.body;
-                    setData(prev => prev.map(a =>
-                        a.ticker === asset.ticker ? { ...a, currentPrice: price } : a
-                    ));
+        const client = new Client({
+            brokerURL: 'ws://localhost:8080/ws-native',
+            onConnect: () => {
+                data.forEach(asset => {
+                    client.subscribe(`/topic/price/${asset.ticker}`, (msg) => {
+                        const price = msg.body;
+                        setData(prev => prev.map(a =>
+                            a.ticker === asset.ticker ? { ...a, currentPrice: price } : a
+                        ));
+                    });
                 });
-            });
+            },
         });
 
-        return () => client.disconnect();
+        client.activate();
+        return () => client.deactivate();
     }, [data.length]);
 
     const totalValue = data.reduce((sum, a) => sum + Number(a.currentValue || 0), 0);
