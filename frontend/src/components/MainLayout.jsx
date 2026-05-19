@@ -70,8 +70,7 @@ function MainLayout() {
                     placement="left"
                     open={drawerOpen}
                     onClose={() => setDrawerOpen(false)}
-                    styles={{ body: { padding: 0, background: '#001529' } }}
-                    width={200}
+                    styles={{ body: { padding: 0, background: '#001529' }, wrapper: { width: 200 } }}
                     title={null}
                     closable={false}
                 >
