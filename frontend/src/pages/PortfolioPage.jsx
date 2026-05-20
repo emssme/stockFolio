@@ -1,12 +1,16 @@
 import { useEffect, useState } from 'react';
-import { Table, Card, Row, Col, Statistic } from 'antd';
+import { Table, Card, Row, Col, Statistic, Grid } from 'antd';
 import { ArrowUpOutlined, ArrowDownOutlined } from '@ant-design/icons';
+
+const { useBreakpoint } = Grid;
 import { getPortfolio } from '../api/portfolioApi';
 import { Client } from '@stomp/stompjs';
 import { PieChart, Pie, Cell, Tooltip, Legend, BarChart, Bar, XAxis, YAxis, ResponsiveContainer } from 'recharts';
 
 function PortfolioPage() {
     const [data, setData] = useState([]);
+    const screens = useBreakpoint();
+    const isMobile = !screens.md;
 
     useEffect(() => {
         getPortfolio()
@@ -18,7 +22,7 @@ function PortfolioPage() {
         if (data.length === 0) return;
 
         const client = new Client({
-            brokerURL: 'ws://localhost:8080/ws-native',
+            brokerURL: import.meta.env.VITE_WS_URL,
             onConnect: () => {
                 data.forEach(asset => {
                     client.subscribe(`/topic/price/${asset.ticker}`, (msg) => {
@@ -52,8 +56,7 @@ function PortfolioPage() {
             align: 'right',
             render: v => {
                 const rate = Number(v);
-                const color = rate >= 0 ? '#cf1322' : '#000d86';
-                return <span style={{ color }}>{rate >= 0 ? '+' : ''}{rate}%</span>;
+                return <span>{rate >= 0 ? '+' : ''}{rate}%</span>;
             }
         },
         { title: '증권사', dataIndex: 'brokerage', render: v => v || '-' },
@@ -157,9 +160,61 @@ function PortfolioPage() {
                 </Col>
             </Row>
             
-            <Card style={{ marginBottom: 24 }}>
-                <Table dataSource={data} columns={columns} rowKey="ticker" pagination={false} scroll={{ x: 'max-content' }} />
-            </Card>
+            {isMobile ? (
+                <Row gutter={[12, 12]} style={{ marginBottom: 24 }}>
+                    {data.map(a => {
+                        const profitRate = Number(a.profitRate);
+                        const color = profitRate >= 0 ? '#cf1322' : '#000d86';
+                        return (
+                            <Col xs={24} key={a.ticker}>
+                                <Card size="small" style={{ borderLeft: `4px solid ${color}` }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <div>
+                                            <span style={{ fontWeight: 'bold', fontSize: 15 }}>{a.name}</span>
+                                            <span style={{ color: '#888', fontSize: 12, marginLeft: 6 }}>{a.ticker}</span>
+                                        </div>
+                                        <span style={{ color, fontWeight: 'bold', fontSize: 15 }}>
+                                            {profitRate >= 0 ? '+' : ''}{profitRate}%
+                                        </span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555', marginBottom: 4 }}>
+                                        <span>현재가</span>
+                                        <span style={{ color }}>{Number(a.currentPrice).toLocaleString()}원</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555', marginBottom: 4 }}>
+                                        <span>평가금액</span>
+                                        <span style={{ color }}>{Number(a.currentValue).toLocaleString()}원</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555', marginBottom: 4 }}>
+                                        <span>평균단가</span>
+                                        <span>{Number(a.avgPurchasePrice).toLocaleString()}원</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, color: '#555' }}>
+                                        <span>수량</span>
+                                        <span>{a.quantity}</span>
+                                    </div>
+                                    {a.brokerage && (
+                                        <div style={{ marginTop: 6, fontSize: 12, color: '#aaa', textAlign: 'right' }}>{a.brokerage}</div>
+                                    )}
+                                </Card>
+                            </Col>
+                        );
+                    })}
+                </Row>
+            ) : (
+                <Card style={{ marginBottom: 24 }}>
+                    <Table
+                        dataSource={data}
+                        columns={columns}
+                        rowKey="ticker"
+                        pagination={false}
+                        scroll={{ x: 'max-content' }}
+                        onRow={record => ({
+                            style: { color: Number(record.profitRate) >= 0 ? '#cf1322' : '#000d86' }
+                        })}
+                    />
+                </Card>
+            )}
         </>
     );
 }
