@@ -37,7 +37,4 @@ logging:
 kis:
   app-key: PSnraOEXWkmDmGPdWVhNz6BeEdqrD5UFrYCf
   app-secret: WoTb+SjjwIwvDItrbyQnXYJp2VoW36ur7061aByqSfz3//81zxnU8k7iN4u3lzD8q3wkisauLS6fA2TmBAQpVlr8FMx6xl4/cLceE8BABbrR+I5NsFrv6+mtIdSRCgGH4nUMkjPe/KLlwaeSeJs669TZDR+LQxdUIH1OeZjZccf4tu10u7A=
-  # 모의투자 URL
-  base-url: https://openapivts.koreainvestment.com:29443
-  # 실투자 URL
-  # base-url: https://openapi.koreainvestment.com:9443
+  base-url: https://openapi.koreainvestment.com:9443
