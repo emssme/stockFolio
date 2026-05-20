@@ -24,98 +24,24 @@ public class KisStockService {
     private final RedisTemplate<String, String> redisTemplate;
     private final RestClient restClient = RestClient.create();
 
+    // 국내주식 현재가 (캐시 없으면 API 호출 → 현재가+등락률 동시 캐싱)
     public BigDecimal getCurrentPrice(String ticker) {
-        // Redis 캐시 확인
         String cached = redisTemplate.opsForValue().get("kis:price:" + ticker);
-        if (cached != null) {
-            return new BigDecimal(cached);
-        }
-
-        // API 호출
-        BigDecimal price = fetchCurrentPrice(ticker);
-
-        // Redis 저장 (TTL 10초)
-        redisTemplate.opsForValue()
-            .set("kis:price:" + ticker, price.toString(), 10, TimeUnit.SECONDS);
-
-        return price;
+        if (cached != null) return new BigDecimal(cached);
+        fetchAndCacheDomestic(ticker);
+        return new BigDecimal(redisTemplate.opsForValue().get("kis:price:" + ticker));
     }
 
-    private BigDecimal fetchCurrentPrice(String ticker) {
-
-        Map<String, Object> response = restClient.get()
-            .uri(kisProperties.getBaseUrl() 
-                + "/uapi/domestic-stock/v1/quotations/inquire-price"
-                + "?fid_cond_mrkt_div_code=J"
-                + "&fid_input_iscd=" + ticker)
-            .header("authorization", "Bearer " + kisTokenService.getAccessToken())
-            .header("appkey", kisProperties.getAppKey())
-            .header("appsecret", kisProperties.getAppSecret())
-            .header("tr_id", "FHKST01010100")
-            .retrieve()
-            .body(new ParameterizedTypeReference<Map<String, Object>>() {});
-
-        Map<String, Object> output = (Map<String, Object>) response.get("output");
-        if (output == null) {
-            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
-        }
-
-        String priceStr = (String) output.get("stck_prpr");
-        if (priceStr == null || priceStr.isBlank()) {
-            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
-        }
-
-        return new BigDecimal(priceStr);
-    }
-
-    public BigDecimal getOverseasCurrentPrice(String ticker, String exchange) {
-                // Redis 캐시 확인
-        String cached = redisTemplate.opsForValue().get("kis:price:overseas:" + exchange + ":" + ticker);
-        if (cached != null) {
-            return new BigDecimal(cached);
-        }
-
-        // API 호출
-        BigDecimal price = fetchOverSeasCurrentPrice(ticker, exchange);
-
-        // Redis 저장 (TTL 10초)
-        redisTemplate.opsForValue()
-            .set("kis:price:overseas:" + exchange + ":" + ticker, price.toString(), 10, TimeUnit.SECONDS);
-
-        return price;
-    }
-
-    private BigDecimal fetchOverSeasCurrentPrice(String ticker, String exchange) {
-
-        Map<String, Object> response = restClient.get()
-            .uri(kisProperties.getBaseUrl() 
-                + "/uapi/overseas-price/v1/quotations/price"
-                + "?EXCD=" + exchange
-                + "&SYMB=" + ticker)
-            .header("authorization", "Bearer " + kisTokenService.getAccessToken())
-            .header("appkey", kisProperties.getAppKey())
-            .header("appsecret", kisProperties.getAppSecret())
-            .header("tr_id", "HHDFS00000300")
-            .retrieve()
-            .body(new ParameterizedTypeReference<Map<String, Object>>() {});
-
-        Map<String, Object> output = (Map<String, Object>) response.get("output");  // ✅ output 먼저
-        if (output == null) throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
-
-        String priceStr = (String) output.get("last");
-        if (priceStr == null || priceStr.isBlank()) {
-            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
-        }
-
-        return new BigDecimal(priceStr);
-    }
-
+    // 국내주식 등락률 (현재가와 같은 API → 캐시 공유)
     public BigDecimal getDomesticPriceChangeRate(String ticker) {
         String cached = redisTemplate.opsForValue().get("kis:change:" + ticker);
-        if (cached != null) {
-            return new BigDecimal(cached);
-        }
+        if (cached != null) return new BigDecimal(cached);
+        fetchAndCacheDomestic(ticker);
+        return new BigDecimal(redisTemplate.opsForValue().get("kis:change:" + ticker));
+    }
 
+    // 단일 API 호출로 현재가 + 등락률 동시 캐싱
+    private void fetchAndCacheDomestic(String ticker) {
         Map<String, Object> response = restClient.get()
             .uri(kisProperties.getBaseUrl()
                 + "/uapi/domestic-stock/v1/quotations/inquire-price"
@@ -129,27 +55,36 @@ public class KisStockService {
             .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
         Map<String, Object> output = (Map<String, Object>) response.get("output");
-        if (output == null) {
+        if (output == null) throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+
+        String price = (String) output.get("stck_prpr");
+        String changeRate = (String) output.get("prdy_ctrt");
+        if (price == null || price.isBlank() || changeRate == null || changeRate.isBlank()) {
             throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
         }
 
-        String changeRateStr = (String) output.get("prdy_ctrt");
-        if (changeRateStr == null || changeRateStr.isBlank()) {
-            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
-        }
-
-        redisTemplate.opsForValue()
-            .set("kis:change:" + ticker, changeRateStr, 10, TimeUnit.SECONDS);
-
-        return new BigDecimal(changeRateStr);
+        redisTemplate.opsForValue().set("kis:price:" + ticker, price, 10, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("kis:change:" + ticker, changeRate, 10, TimeUnit.SECONDS);
     }
 
+    // 해외주식 현재가 (캐시 없으면 API 호출 → 현재가+등락률 동시 캐싱)
+    public BigDecimal getOverseasCurrentPrice(String ticker, String exchange) {
+        String cached = redisTemplate.opsForValue().get("kis:price:overseas:" + exchange + ":" + ticker);
+        if (cached != null) return new BigDecimal(cached);
+        fetchAndCacheOverseas(ticker, exchange);
+        return new BigDecimal(redisTemplate.opsForValue().get("kis:price:overseas:" + exchange + ":" + ticker));
+    }
+
+    // 해외주식 등락률 (현재가와 같은 API → 캐시 공유)
     public BigDecimal getOverseasPriceChangeRate(String ticker, String exchange) {
         String cached = redisTemplate.opsForValue().get("kis:change:overseas:" + exchange + ":" + ticker);
-        if (cached != null) {
-            return new BigDecimal(cached);
-        }
+        if (cached != null) return new BigDecimal(cached);
+        fetchAndCacheOverseas(ticker, exchange);
+        return new BigDecimal(redisTemplate.opsForValue().get("kis:change:overseas:" + exchange + ":" + ticker));
+    }
 
+    // 단일 API 호출로 현재가 + 등락률 동시 캐싱
+    private void fetchAndCacheOverseas(String ticker, String exchange) {
         Map<String, Object> response = restClient.get()
             .uri(kisProperties.getBaseUrl()
                 + "/uapi/overseas-price/v1/quotations/price"
@@ -163,18 +98,15 @@ public class KisStockService {
             .body(new ParameterizedTypeReference<Map<String, Object>>() {});
 
         Map<String, Object> output = (Map<String, Object>) response.get("output");
-        if (output == null) {
+        if (output == null) throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
+
+        String price = (String) output.get("last");
+        String changeRate = (String) output.get("rate");
+        if (price == null || price.isBlank() || changeRate == null || changeRate.isBlank()) {
             throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
         }
 
-        String changeRateStr = (String) output.get("rate");
-        if (changeRateStr == null || changeRateStr.isBlank()) {
-            throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
-        }
-
-        redisTemplate.opsForValue()
-            .set("kis:change:overseas:" + exchange + ":" + ticker, changeRateStr, 10, TimeUnit.SECONDS);
-
-        return new BigDecimal(changeRateStr);
+        redisTemplate.opsForValue().set("kis:price:overseas:" + exchange + ":" + ticker, price, 10, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("kis:change:overseas:" + exchange + ":" + ticker, changeRate, 10, TimeUnit.SECONDS);
     }
 }
