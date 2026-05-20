@@ -58,7 +58,7 @@ public class PriceBroadcastScheduler {
         }
     }
 
-    @Scheduled(fixedDelay = 8000)
+    @Scheduled(fixedDelay = 12000)
     public void refreshKisPrices() {
         assetRepository.findAllByDeletedAtIsNull().forEach(asset -> {
             try {
@@ -68,6 +68,9 @@ public class PriceBroadcastScheduler {
                         asset.getTicker(), asset.getExchange());
                     default -> {}
                 }
+                Thread.sleep(300); // KIS API 초당 요청 제한 방지
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
             } catch (Exception e) {
                 log.warn("KIS 가격 갱신 실패: {} - {}", asset.getTicker(), e.getMessage());
             }
