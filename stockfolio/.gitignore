@@ -48,3 +48,6 @@ src/main/resources/application-secret.yaml
 ### 빌드 결과물 ###
 *.jar
 *.war
+
+# .gitignore에 추가
+CLAUDE.md
