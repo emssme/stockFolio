@@ -1,6 +1,6 @@
 import { Form, Input, Button, Card, Typography, message } from 'antd';
 import { login } from '../api/authApi';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const { Title, Text } = Typography;
 
@@ -32,12 +32,17 @@ function LoginPage() {
                     <Form.Item name="password" label="비밀번호" rules={[{ required: true, message: '비밀번호를 입력해주세요' }]}>
                         <Input.Password size="large" placeholder="비밀번호" />
                     </Form.Item>
-                    <Form.Item style={{ marginBottom: 0, marginTop: 8 }}>
+                    <Form.Item style={{ marginBottom: 8, marginTop: 8 }}>
                         <Button type="primary" htmlType="submit" size="large" block>
                             로그인
                         </Button>
                     </Form.Item>
                 </Form>
+
+                <div style={{ textAlign: 'center' }}>
+                    <Text type="secondary">계정이 없으신가요? </Text>
+                    <Link to="/signup">회원가입</Link>
+                </div>
             </Card>
         </div>
     );
