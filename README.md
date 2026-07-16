@@ -12,7 +12,7 @@
 |------|------|
 | Backend | Java 17, Spring Boot, Spring Security, JPA |
 | Frontend | React |
-| DB | MySQL 8.0, Redis |
+| DB | MariaDB, Redis |
 | 실시간 | WebSocket |
 | 배포 | GCP |
 
