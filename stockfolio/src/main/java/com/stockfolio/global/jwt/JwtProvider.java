@@ -1,6 +1,7 @@
 package com.stockfolio.global.jwt;
 
 import java.util.Date;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import javax.crypto.SecretKey;
@@ -37,6 +38,7 @@ public class JwtProvider {
     public String generateAccessToken(Long userId, String email) {
         // Access Token 생성
         return Jwts.builder()
+            .id(UUID.randomUUID().toString())  // jti: 같은 밀리초에 발급돼도 토큰이 겹치지 않도록 보장
             .subject(userId.toString())
             .claim("email", email)
             .issuedAt(new Date())
@@ -49,6 +51,7 @@ public class JwtProvider {
     public String generateRefreshToken(Long userId) {
         // Refesh Token 생성
         return Jwts.builder()
+            .id(UUID.randomUUID().toString())  // jti: 같은 밀리초에 재발급돼도 토큰이 겹치지 않도록 보장
             .subject(userId.toString())
             .issuedAt(new Date())
             .expiration(new Date(System.currentTimeMillis() + refreshExpiration * 1000))
