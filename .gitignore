@@ -75,3 +75,6 @@ stockfolio/src/main/resources/application-secret.yaml
 # 빌드 결과물
 *.jar
 *.war
+
+# SSH 키
+*.pem
