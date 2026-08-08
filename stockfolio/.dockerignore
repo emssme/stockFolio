@@ -1,0 +1,7 @@
+build/
+bin/
+.gradle/
+out/
+*.log
+src/main/resources/application-local.yaml
+src/main/resources/application-prod.yaml
