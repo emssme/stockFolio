@@ -2,13 +2,11 @@
 
 실시간 주식·코인 포트폴리오 트래커.
 
-국내주식, 해외주식, 코인 자산을 등록하면 서버가 한국투자증권 Open API와 Binance WebSocket에서 시세를 주기적으로 수집해 Redis에 캐싱하고, STOMP WebSocket으로 클라이언트에 실시간 전송합니다. 프론트엔드는 이걸 받아 평가금액과 수익률을 갱신하고 파이/바 차트로 보여줍니다.
+국내주식, 해외주식, 코인 자산을 등록하면 서버가 한국투자증권(KIS) Open API와 Binance WebSocket에서 시세를 주기적으로 수집해 Redis에 캐싱하고, STOMP WebSocket으로 클라이언트에 실시간 전송합니다. 프론트엔드는 이걸 받아 평가금액과 수익률을 갱신하고 파이/바 차트로 보여줍니다.
 
 - GitHub: https://github.com/emssme/stockFolio
-- 배포 링크: _(배포 URL 추가 예정)_
+- 배포: http://32.236.174.204/
 - 1인 개발
-
----
 
 ## 기술 스택
 
@@ -20,9 +18,7 @@
 | 캐시 / 세션 | Redis (시세 캐시, Refresh Token, KIS Access Token 캐시) |
 | 인증 | JWT (Access/Refresh, HS256) |
 | 외부 API | 한국투자증권(KIS) Open API, Binance WebSocket |
-| 배포 | AWS EC2 |
-
----
+| 배포 | AWS EC2, Docker / Docker Compose (MariaDB, Redis, Backend, Nginx+Frontend) |
 
 ## 아키텍처
 
@@ -72,8 +68,6 @@ graph TB
 - 시세 수집: `PriceBroadcastScheduler`가 12초마다 보유 자산을 순회하며 국내/해외 주식은 KIS REST API로, 코인은 이미 연결된 Binance WebSocket 세션으로 시세를 Redis에 채웁니다. 그리고 3초마다 별도 스케줄로 Redis의 `kis:price:*` / `binance:price:*` 키를 읽어 `/topic/price/{ticker}`로 STOMP 브로드캐스트합니다.
 - 실시간 반영: 코인은 자산을 등록하는 시점에 `BinanceWebSocketService.subscribe()`가 호출되면서 해당 심볼의 Binance WebSocket 연결이 그때 처음 열립니다. 전체를 미리 구독하지 않고 필요할 때 구독하는 방식입니다.
 
----
-
 ## 주요 기능 및 기술 선택 이유
 
 ### 회원가입·로그인 (JWT Access/Refresh)
@@ -99,8 +93,6 @@ KIS 시세(가격 + 등락률)는 한 번의 호출로 같이 조회해서 `kis:
 ### 소프트 삭제
 
 `users`, `assets` 둘 다 물리 삭제 대신 `deleted_at`을 채웁니다. 모든 조회/수정/삭제 로직이 `deleted_at IS NULL` 조건을 사용합니다.
-
----
 
 ## 트러블슈팅
 
@@ -138,11 +130,9 @@ KIS 시세(가격 + 등락률)는 한 번의 호출로 같이 조회해서 `kis:
 - 원인: `JwtProvider.generateRefreshToken()`이 `subject`, `issuedAt`(밀리초), `expiration`만으로 페이로드를 구성했는데, 두 호출이 같은 밀리초 안에 일어나면 페이로드가 같아져 HMAC 서명 결과(JWT 문자열)까지 동일해졌습니다. 이러면 "재발급마다 새 토큰으로 교체"라는 로테이션 전제가 깨집니다.
 - 해결: `Jwts.builder().id(UUID.randomUUID().toString())`로 `jti` claim을 추가해 같은 밀리초에 발급돼도 토큰이 항상 달라지게 수정했습니다(`JwtProvider.java`).
 
----
-
 ## 실행 방법
 
-Docker 구성은 아직 없어서(향후 개선 항목) 로컬에 MariaDB/Redis를 직접 띄우는 방식만 지원합니다.
+로컬 개발은 MariaDB/Redis를 직접 띄우고, 배포는 Docker Compose를 씁니다(아래 [배포](#배포-docker-compose) 참고).
 
 ### 사전 준비
 
@@ -207,7 +197,26 @@ npm run dev   # http://localhost:5173
 | `KIS_APP_KEY` / `KIS_APP_SECRET` / `KIS_BASE_URL` | KIS Open API 인증 |
 | `ALLOWED_ORIGIN` | CORS 허용 Origin (프론트엔드 배포 도메인) |
 
----
+### 배포 (Docker Compose)
+
+EC2 인스턴스에 `docker-compose.yml` 하나로 MariaDB, Redis, Backend(Spring Boot), Frontend(Nginx)를 한 번에 띄웁니다.
+
+```bash
+# EC2 인스턴스에서
+git clone https://github.com/emssme/stockFolio.git
+cd stockFolio
+
+cp .env.example .env
+# .env에 DB_PASSWORD, JWT_SECRET, KIS_APP_KEY, KIS_APP_SECRET, ALLOWED_ORIGIN,
+# PUBLIC_URL, PUBLIC_WS_URL 값을 채운다 (PUBLIC_URL/PUBLIC_WS_URL은 EC2 퍼블릭 IP 기준)
+
+docker compose up -d --build
+```
+
+- `frontend` 컨테이너(Nginx)가 80번 포트로 정적 파일을 서빙하면서 `/api`, `/ws-native`, `/ws`를 `backend` 컨테이너(8080번)로 프록시합니다([frontend/nginx.conf](frontend/nginx.conf)).
+- 프론트엔드 빌드 시점에 `VITE_API_URL`/`VITE_WS_URL`을 Docker build arg로 주입하므로(`PUBLIC_URL`/`PUBLIC_WS_URL`), 배포 주소가 바뀌면 재빌드(`docker compose up -d --build frontend`)가 필요합니다.
+- `backend`는 `SPRING_PROFILES_ACTIVE=prod`로 기동되며, 위 표의 환경변수를 `docker-compose.yml`이 컨테이너에 그대로 주입합니다.
+- 현재 배포: http://32.236.174.204/
 
 ## API 명세
 
@@ -306,8 +315,6 @@ Base path: `/api`. 모든 응답은 `{ "success": boolean, "data": ..., "error":
 | `DUPLICATE_EMAIL` / `DUPLICATE_ASSET` | 409 | 중복 |
 | `INTERNAL_SERVER_ERROR` / `EXTERNAL_API_ERROR` | 500 | 서버/외부 API 오류 |
 
----
-
 ## ERD / DB 설계
 
 전체 DDL: [docs/ERD.md](docs/ERD.md) · 다이어그램 이미지: [docs/ERD.png](docs/ERD.png)
@@ -356,8 +363,6 @@ erDiagram
 | `kis:token` | 23h | KIS Open API Access Token 캐시 |
 | `refresh:{userId}` | 7d | JWT Refresh Token |
 
----
-
 ## 테스트
 
 핵심 보안·권한 로직을 단위/통합 두 layer로 검증합니다. 외부 시세 API(KIS·Binance)는 `@MockitoBean`으로 격리해서 네트워크 없이 실행됩니다.
@@ -385,31 +390,25 @@ cd stockfolio
 ./gradlew test
 ```
 
----
-
 ## 데모
 
 _(데모 GIF/스크린샷 추가 예정 — `docs/` 하위에 이미지 추가 후 이 섹션에 링크)_
-
----
 
 ## 회고 / 향후 개선
 
 만들면서 잘했다고 생각하는 부분:
 
-- 시세 API 호출을 Redis TTL 캐시로 감싸서 외부 API(KIS 초당 제한, Binance)의 제약을 서비스 레이어에서 흡수한 점.
-- 소프트 삭제 + `active_key` 가상 컬럼으로 "삭제 후 재등록 시 유니크 충돌"을 DB 레벨에서 해결한 점.
-- Refresh Token 재사용 탐지(로테이션)를 처음부터 넣어 탈취 시나리오에 대비한 점.
-- "타인 자산 접근 차단" 같은 보안 분기를 단위 테스트뿐 아니라 실제 Security 필터 체인을 통과하는 통합 테스트로도 고정해서, 리팩터링 중 권한 체크가 실수로 빠지는 걸 막을 안전망을 둔 점. 이 과정에서 위의 Refresh Token 동일 밀리초 버그도 발견해 고쳤습니다.
+- 시세 API 호출을 Redis TTL 캐시로 감싸서 외부 API(KIS 초당 제한, Binance)의 제약을 서비스 레이어에서 흡수했습니다.
+- 소프트 삭제 + `active_key` 가상 컬럼으로 "삭제 후 재등록 시 유니크 충돌"을 DB 레벨에서 해결했습니다.
+- Refresh Token 재사용 탐지(로테이션)를 처음부터 넣어 탈취 시나리오에 대비했습니다.
+- "타인 자산 접근 차단" 같은 보안 분기를 단위 테스트뿐 아니라 실제 Security 필터 체인을 통과하는 통합 테스트로도 고정했습니다. 리팩터링 중 권한 체크가 실수로 빠지는 걸 막는 안전망인데, 이 과정에서 위의 Refresh Token 동일 밀리초 버그도 발견해 고쳤습니다.
 
 아직 부족하거나 더 하고 싶은 부분:
 
 - 초기 기획 문서(`docs/`)에 있던 매수/매도 이력, 기간별 수익률 차트(`portfolio_snapshots`), 회원정보 수정/탈퇴 API는 스키마만 있고 미구현. 실제로 구현하거나 문서/스키마를 현재 범위에 맞게 정리해야 합니다.
 - WebSocket 메시지가 JSON이 아니라 순수 문자열이라 클라이언트가 등락률 같은 추가 정보를 같이 받을 수 없음. 페이로드를 JSON으로 구조화하면 프론트에서 실시간 등락률 표시가 가능해집니다.
-- Docker Compose로 MariaDB/Redis 포함 로컬 실행 환경 제공.
 - CI에서 시크릿 스캔(gitleaks 등) 도입. 이번 `application-local.yaml` 커밋 이력을 겪고 필요성을 느꼈습니다.
-
----
+- HTTPS 미적용(현재 EC2 퍼블릭 IP로 HTTP 서비스 중). 도메인 연결 후 Let's Encrypt 등으로 인증서 적용 필요.
 
 ## 기획 문서
 
@@ -419,8 +418,6 @@ _(데모 GIF/스크린샷 추가 예정 — `docs/` 하위에 이미지 추가 �
 - [시스템 아키텍처 (초기 설계)](docs/시스템아키텍처.md)
 - [API 명세서 (초기 설계)](docs/API명세서.md)
 - [ERD](docs/ERD.md)
-
----
 
 ## 커밋 컨벤션
 
