@@ -63,8 +63,8 @@ public class KisStockService {
             throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
         }
 
-        redisTemplate.opsForValue().set("kis:price:" + ticker, price, 10, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set("kis:change:" + ticker, changeRate, 10, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("kis:price:" + ticker, price, 30, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("kis:change:" + ticker, changeRate, 30, TimeUnit.SECONDS);
         sleepToRespectKisRateLimit();
     }
 
@@ -107,8 +107,8 @@ public class KisStockService {
             throw new GlobalException(ErrorCode.EXTERNAL_API_ERROR);
         }
 
-        redisTemplate.opsForValue().set("kis:price:overseas:" + exchange + ":" + ticker, price, 10, TimeUnit.SECONDS);
-        redisTemplate.opsForValue().set("kis:change:overseas:" + exchange + ":" + ticker, changeRate, 10, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("kis:price:overseas:" + exchange + ":" + ticker, price, 30, TimeUnit.SECONDS);
+        redisTemplate.opsForValue().set("kis:change:overseas:" + exchange + ":" + ticker, changeRate, 30, TimeUnit.SECONDS);
         sleepToRespectKisRateLimit();
     }
 
