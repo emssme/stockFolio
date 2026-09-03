@@ -1,8 +1,6 @@
-import { Form, Input, Button, Card, Typography, message } from 'antd';
+import { Form, Input, Button, message } from 'antd';
 import { signup } from '../api/authApi';
 import { useNavigate, Link } from 'react-router-dom';
-
-const { Title, Text } = Typography;
 
 function SignUpPage() {
     const navigate = useNavigate();
@@ -18,11 +16,15 @@ function SignUpPage() {
     };
 
     return (
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '100vh', background: '#f0f2f5' }}>
-            <Card style={{ width: 400, boxShadow: '0 4px 16px rgba(0,0,0,0.1)', borderRadius: 12 }}>
-                <div style={{ textAlign: 'center', marginBottom: 32 }}>
-                    <Title level={2} style={{ margin: 0, color: '#1677ff' }}>StockFolio</Title>
-                    <Text type="secondary">회원가입</Text>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#F2F4F7' }}>
+            <div style={{ width: '100%', maxWidth: 376, display: 'flex', flexDirection: 'column', gap: 26, background: '#fff', padding: '40px 36px', borderRadius: 16, boxShadow: '0 1px 2px rgba(16,24,40,.05)', border: '1px solid #E5E8EE' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7, textAlign: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 9, marginBottom: 10 }}>
+                        <div style={{ width: 26, height: 26, borderRadius: 8, background: '#2D6BFF', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 800, color: '#fff' }}>S</div>
+                        <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-.02em' }}>StockFolio</span>
+                    </div>
+                    <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-.03em' }}>회원가입</div>
+                    <div style={{ fontSize: 14, color: '#6B7686' }}>계정을 만들고 포트폴리오 관리를 시작하세요.</div>
                 </div>
 
                 <Form layout="vertical" onFinish={onFinish}>
@@ -34,7 +36,7 @@ function SignUpPage() {
                             { type: 'email', message: '이메일 형식이 올바르지 않습니다' }
                         ]}
                     >
-                        <Input size="large" placeholder="이메일" />
+                        <Input size="large" placeholder="이메일" style={{ height: 46, borderRadius: 10 }} />
                     </Form.Item>
                     <Form.Item
                         name="nickname"
@@ -44,7 +46,7 @@ function SignUpPage() {
                             { min: 2, max: 50, message: '이름은 2자 이상 50자 이하여야 합니다' }
                         ]}
                     >
-                        <Input size="large" placeholder="이름 (2자 이상)" />
+                        <Input size="large" placeholder="이름 (2자 이상)" style={{ height: 46, borderRadius: 10 }} />
                     </Form.Item>
                     <Form.Item
                         name="password"
@@ -54,7 +56,7 @@ function SignUpPage() {
                             { min: 8, message: '비밀번호는 8자 이상이어야 합니다' }
                         ]}
                     >
-                        <Input.Password size="large" placeholder="비밀번호 (8자 이상)" />
+                        <Input.Password size="large" placeholder="비밀번호 (8자 이상)" style={{ height: 46, borderRadius: 10 }} />
                     </Form.Item>
                     <Form.Item
                         name="passwordConfirm"
@@ -72,20 +74,19 @@ function SignUpPage() {
                             })
                         ]}
                     >
-                        <Input.Password size="large" placeholder="비밀번호 확인" />
+                        <Input.Password size="large" placeholder="비밀번호 확인" style={{ height: 46, borderRadius: 10 }} />
                     </Form.Item>
                     <Form.Item style={{ marginBottom: 8, marginTop: 8 }}>
-                        <Button type="primary" htmlType="submit" size="large" block>
+                        <Button type="primary" htmlType="submit" size="large" block style={{ height: 48, borderRadius: 10, background: '#0D1420', border: 'none', fontWeight: 600 }}>
                             회원가입
                         </Button>
                     </Form.Item>
                 </Form>
 
-                <div style={{ textAlign: 'center' }}>
-                    <Text type="secondary">이미 계정이 있으신가요? </Text>
-                    <Link to="/login">로그인</Link>
+                <div style={{ textAlign: 'center', fontSize: 13.5, color: '#6B7686' }}>
+                    이미 계정이 있으신가요? <Link to="/login">로그인</Link>
                 </div>
-            </Card>
+            </div>
         </div>
     );
 }
