@@ -84,7 +84,7 @@ Refresh Token은 DB가 아니라 Redis(`refresh:{userId}`, TTL 7일)에 저장�
 
 ### Redis 캐싱으로 외부 API 호출 줄이기
 
-KIS 시세(가격 + 등락률)는 한 번의 호출로 같이 조회해서 `kis:price:*` / `kis:change:*` 두 키에 동시에 캐싱합니다(TTL 10초). KIS Access Token도 `kis:token` 키로 캐싱해서(TTL 23시간) 요청마다 재발급받지 않습니다.
+KIS 시세(가격 + 등락률)는 한 번의 호출로 같이 조회해서 `kis:price:*` / `kis:change:*` 두 키에 동시에 캐싱합니다(TTL 30초 — [트러블슈팅 #7](#7-포트폴리오-조회가-캐시-미스-때문에-거의-항상-느림) 참고). KIS Access Token도 `kis:token` 키로 캐싱해서(TTL 23시간) 요청마다 재발급받지 않습니다.
 
 ### 포트폴리오 집계 (`GET /api/portfolio`)
 
@@ -129,6 +129,26 @@ KIS 시세(가격 + 등락률)는 한 번의 호출로 같이 조회해서 `kis:
 - 문제: `AuthControllerIntegrationTest`에서 로그인 직후 바로 재발급을 호출하는 테스트를 짜다가, 재발급받은 토큰이 이전 토큰과 완전히 똑같이 나오는 경우를 발견했습니다.
 - 원인: `JwtProvider.generateRefreshToken()`이 `subject`, `issuedAt`(밀리초), `expiration`만으로 페이로드를 구성했는데, 두 호출이 같은 밀리초 안에 일어나면 페이로드가 같아져 HMAC 서명 결과(JWT 문자열)까지 동일해졌습니다. 이러면 "재발급마다 새 토큰으로 교체"라는 로테이션 전제가 깨집니다.
 - 해결: `Jwts.builder().id(UUID.randomUUID().toString())`로 `jti` claim을 추가해 같은 밀리초에 발급돼도 토큰이 항상 달라지게 수정했습니다(`JwtProvider.java`).
+
+### 6. 자산이 많아지자 포트폴리오 조회에서 다시 KIS 초당 제한 초과
+
+- 문제: 배포 후 실사용 중 자산을 50개 넘게 등록한 계정에서 자산을 등록/조회할 때마다 `GET /api/portfolio`가 500 에러를 냈습니다. 로그엔 트러블슈팅 #1과 같은 `EGW00201`(초당 거래건수 초과)이 찍혀 있었습니다.
+- 원인: #1에서 스케줄러(`PriceBroadcastScheduler`)에는 호출 간 300ms 딜레이를 넣어뒀지만, 사용자가 직접 트리거하는 `PortfolioService.getPortfolio()`는 그 대응이 빠진 채로 자산 목록을 순회하며 캐시 미스마다 KIS API를 지연 없이 연속 호출하고 있었습니다. 자산이 적을 땐 드러나지 않다가 50개를 넘기면서 순간 호출 수가 초당 제한을 넘긴 것입니다.
+- 해결: `KisStockService.fetchAndCacheDomestic`/`fetchAndCacheOverseas`가 실제로 KIS를 호출해 캐싱한 직후 `sleepToRespectKisRateLimit()`(300ms sleep)를 타도록 추가했습니다. 캐시 히트일 땐 이 딜레이를 거치지 않으므로 평소 응답 속도엔 영향이 없고, 캐시가 대거 미스되는 상황에서만 호출 간격이 생겨 제한을 넘지 않습니다.
+- 부수 효과: 캐시가 완전히 비어있는 상태(서버 막 재시작 등)에서 자산이 많은 계정이 포트폴리오를 열면, 자산 수 × 300ms만큼 첫 응답이 느려질 수 있습니다. → 아래 #7로 개선.
+
+### 7. 포트폴리오 조회가 캐시 미스 때문에 거의 항상 느림
+
+- 문제: #6을 고친 뒤에도 포트폴리오 조회가 매번 몇 초~수십 초씩 걸렸습니다.
+- 원인: Redis 캐시 TTL은 10초인데, 스케줄러가 자산 50개를 순회하며 자산마다 300ms씩 쉬다 보니 한 바퀴 도는 데 15초 이상 걸리고 다음 실행까지 대기(`fixedDelay=12000`)까지 더해지면 특정 자산의 캐시가 27초 넘게 방치됩니다. TTL(10초)이 스케줄러 한 바퀴 도는 시간보다 짧아서, 포트폴리오 조회 시점에 캐시가 이미 만료돼 있는 경우가 대부분이었습니다.
+- 해결: `kis:price:*`/`kis:change:*`(국내·해외 공통) 캐시 TTL을 10초 → 30초로 늘렸습니다. 스케줄러가 백그라운드에서 미리 채워둔 캐시를 포트폴리오 조회가 거의 항상 히트하게 되어, KIS를 직접 호출할 일이 크게 줄었습니다.
+- 트레이드오프: 화면에 보이는 가격이 최대 30초 정도 늦게 갱신될 수 있습니다. 실시간성보다 안정성을 우선한 선택입니다.
+
+### 8. 자산 등록 시 티커에 공백이 섞여 저장됨
+
+- 문제: DB를 확인하다가 `ticker` 컬럼에 `' 043260'`처럼 앞뒤 공백이 낀 채로 저장된 행을 발견했습니다.
+- 원인: `AssetService.registerAsset()`에서 `req.getTicker()` 값을 trim 없이 그대로(코인은 대문자 변환만 하고) 저장하고 있었습니다. 프론트 입력 폼에서 복사/붙여넣기 등으로 공백이 섞여 들어와도 걸러지지 않았습니다.
+- 해결: `ticker`를 저장하기 전에 `.trim()`을 거치도록 수정했습니다(`AssetService.java`). 이미 잘못 저장된 데이터는 운영 DB에서 `UPDATE assets SET ticker = TRIM(ticker) WHERE ticker <> TRIM(ticker);`로 직접 정리했습니다.
 
 ## 실행 방법
 
@@ -357,8 +377,8 @@ erDiagram
 
 | Key | TTL | 용도 |
 |-----|-----|------|
-| `kis:price:{ticker}` / `kis:change:{ticker}` | 10s | 국내주식 현재가/등락률 |
-| `kis:price:overseas:{exchange}:{ticker}` / `kis:change:overseas:...` | 10s | 해외주식 현재가/등락률 |
+| `kis:price:{ticker}` / `kis:change:{ticker}` | 30s | 국내주식 현재가/등락률 |
+| `kis:price:overseas:{exchange}:{ticker}` / `kis:change:overseas:...` | 30s | 해외주식 현재가/등락률 |
 | `binance:price:{symbol}` / `binance:change:{symbol}` | 60s | 코인 현재가/등락률 (WS push로 갱신) |
 | `kis:token` | 23h | KIS Open API Access Token 캐시 |
 | `refresh:{userId}` | 7d | JWT Refresh Token |
@@ -409,6 +429,7 @@ _(데모 GIF/스크린샷 추가 예정 — `docs/` 하위에 이미지 추가 �
 - WebSocket 메시지가 JSON이 아니라 순수 문자열이라 클라이언트가 등락률 같은 추가 정보를 같이 받을 수 없음. 페이로드를 JSON으로 구조화하면 프론트에서 실시간 등락률 표시가 가능해집니다.
 - CI에서 시크릿 스캔(gitleaks 등) 도입. 이번 `application-local.yaml` 커밋 이력을 겪고 필요성을 느꼈습니다.
 - HTTPS 미적용(현재 EC2 퍼블릭 IP로 HTTP 서비스 중). 도메인 연결 후 Let's Encrypt 등으로 인증서 적용 필요.
+- Access Token(TTL 30분) 만료 시 자동 재발급이 안 됨. 백엔드엔 Refresh Token 재발급 API(`/api/auth/reissue`)가 있지만 프론트 `axiosInstance`에 401/403 응답을 가로채 재발급을 시도하는 인터셉터가 없어서, 30분 넘게 세션을 유지하면 API 호출이 403(본문 없음)으로 실패합니다. 지금은 재로그인으로 우회 중.
 
 ## 기획 문서
 
