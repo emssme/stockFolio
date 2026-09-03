@@ -40,10 +40,10 @@ public class AssetService {
             throw new GlobalException(ErrorCode.INVALID_INPUT);
         }
 
-        String ticker = req.getTicker();  // 기본값
+        String ticker = req.getTicker().trim();  // 기본값
         if (req.getAssetType() == AssetType.CRYPTO) {
-            ticker = req.getTicker().toUpperCase() + "USDT";
-            binanceWebSocketService.subscribe(ticker);  
+            ticker = ticker.toUpperCase() + "USDT";
+            binanceWebSocketService.subscribe(ticker);
         }
 
 
