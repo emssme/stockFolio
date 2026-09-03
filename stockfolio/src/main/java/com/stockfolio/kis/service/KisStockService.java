@@ -65,6 +65,7 @@ public class KisStockService {
 
         redisTemplate.opsForValue().set("kis:price:" + ticker, price, 10, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set("kis:change:" + ticker, changeRate, 10, TimeUnit.SECONDS);
+        sleepToRespectKisRateLimit();
     }
 
     // 해외주식 현재가 (캐시 없으면 API 호출 → 현재가+등락률 동시 캐싱)
@@ -108,5 +109,15 @@ public class KisStockService {
 
         redisTemplate.opsForValue().set("kis:price:overseas:" + exchange + ":" + ticker, price, 10, TimeUnit.SECONDS);
         redisTemplate.opsForValue().set("kis:change:overseas:" + exchange + ":" + ticker, changeRate, 10, TimeUnit.SECONDS);
+        sleepToRespectKisRateLimit();
+    }
+
+    // KIS API 초당 요청 제한 방지 (스케줄러와 동일한 방식)
+    private void sleepToRespectKisRateLimit() {
+        try {
+            Thread.sleep(300);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 }
