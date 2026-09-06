@@ -94,62 +94,6 @@ KIS 시세(가격 + 등락률)는 한 번의 호출로 같이 조회해서 `kis:
 
 `users`, `assets` 둘 다 물리 삭제 대신 `deleted_at`을 채웁니다. 모든 조회/수정/삭제 로직이 `deleted_at IS NULL` 조건을 사용합니다.
 
-## 트러블슈팅
-
-### 1. KIS API 초당 요청 제한 초과
-
-- 문제: 보유 자산이 늘면서 스케줄러가 KIS API를 짧은 시간에 몰아 호출해 `EGW00201`(초당 거래건수 초과) 오류가 났습니다.
-- 원인: 자산 1건당 "현재가 조회"와 "등락률 조회"를 API 호출 2번으로 처리하고 있었고, 순회 중 호출 사이에 지연이 없어서 자산 수가 늘수록 순간 호출 수가 선형으로 늘어났습니다.
-- 해결:
-  - KIS 응답에 현재가(`stck_prpr`/`last`)와 등락률(`prdy_ctrt`/`rate`)이 같이 담겨 온다는 점을 이용해 `fetchAndCacheDomestic`/`fetchAndCacheOverseas`에서 호출을 1회로 합치고, 캐시 2개(`kis:price:*`, `kis:change:*`)를 동시에 채웠습니다. 자산당 호출 수가 절반으로 줄었습니다.
-  - 자산 순회 루프 안에 `Thread.sleep(300)`을 넣어 호출 간격을 두고, 갱신 주기도 8초에서 12초로 늘렸습니다.
-- 결과: 자산 10종목 이상 등록해도 초당 제한 오류 없이 시세가 갱신됩니다.
-
-### 2. WebSocket 콘솔 경고, SockJS 제거
-
-- 문제: 프론트엔드에서 `SockJS` + `Stomp.over(socket)` 조합을 쓰니 최신 `@stomp/stompjs`(v7)에서 구버전 API 경고가 나고 연결 안정성도 떨어졌습니다.
-- 원인: `Stomp.over()`는 v7에서 사실상 레거시 API이고, SockJS 폴백 계층이 불필요한 오버헤드를 더하고 있었습니다.
-- 해결: `@stomp/stompjs`의 `Client`로 raw WebSocket(`ws://.../ws-native`)에 직접 연결하도록 바꿨습니다. 이를 위해 백엔드 `WebSocketConfig`에 SockJS 없는 `/ws-native` STOMP 엔드포인트를 추가하고, `SecurityConfig`에서 `/ws-native/**`를 인증 예외로 열었습니다.
-- 부수 수정: Ant Design v6에서 `Drawer`의 `width` prop 직접 사용이 deprecated 경고를 내서 `styles.wrapper.width`로 옮겼습니다.
-
-### 3. 배포 환경에서 CORS 차단
-
-- 문제: 로컬에선 잘 되던 API가 배포 환경 프론트엔드 도메인에서 호출하니 CORS로 막혔습니다.
-- 원인: `CorsConfig`에 허용 Origin이 `http://localhost:5173`으로 하드코딩돼 있어서 배포 도메인이 반영되지 않았습니다.
-- 해결: 허용 Origin을 `ALLOWED_ORIGIN` 환경변수로 분리해(미설정 시 로컬 기본값 유지) 배포 환경별로 다른 도메인을 주입할 수 있게 바꿨습니다.
-
-### 4. `application-local.yaml`의 시크릿 커밋
-
-- 문제: 로컬 전용 설정 파일에 KIS `app-key`/`app-secret`, JWT 서명 시크릿을 평문으로 적었는데, `.gitignore` 등록 전 커밋(`feat: 한국투자증권 Open API 연동`)에서 이미 추적돼 원격 히스토리에 남아 있었습니다.
-- 해결: 파일을 `git rm --cached`로 추적 해제하고, `git filter-repo`로 전체 히스토리와 모든 브랜치에서 제거한 뒤 강제 푸시했습니다. KIS 앱 키와 JWT 시크릿은 전부 재발급/교체했습니다.
-- 교훈: `.gitignore`는 신규 추적만 막지 이미 추적 중인 파일엔 소급 적용되지 않습니다. 시크릿이 들어갈 수 있는 파일은 첫 커밋 전에 `.gitignore`부터 등록해야 합니다.
-
-### 5. Refresh Token 재발급 시 동일 밀리초 충돌
-
-- 문제: `AuthControllerIntegrationTest`에서 로그인 직후 바로 재발급을 호출하는 테스트를 짜다가, 재발급받은 토큰이 이전 토큰과 완전히 똑같이 나오는 경우를 발견했습니다.
-- 원인: `JwtProvider.generateRefreshToken()`이 `subject`, `issuedAt`(밀리초), `expiration`만으로 페이로드를 구성했는데, 두 호출이 같은 밀리초 안에 일어나면 페이로드가 같아져 HMAC 서명 결과(JWT 문자열)까지 동일해졌습니다. 이러면 "재발급마다 새 토큰으로 교체"라는 로테이션 전제가 깨집니다.
-- 해결: `Jwts.builder().id(UUID.randomUUID().toString())`로 `jti` claim을 추가해 같은 밀리초에 발급돼도 토큰이 항상 달라지게 수정했습니다(`JwtProvider.java`).
-
-### 6. 자산이 많아지자 포트폴리오 조회에서 다시 KIS 초당 제한 초과
-
-- 문제: 배포 후 실사용 중 자산을 50개 넘게 등록한 계정에서 자산을 등록/조회할 때마다 `GET /api/portfolio`가 500 에러를 냈습니다. 로그엔 트러블슈팅 #1과 같은 `EGW00201`(초당 거래건수 초과)이 찍혀 있었습니다.
-- 원인: #1에서 스케줄러(`PriceBroadcastScheduler`)에는 호출 간 300ms 딜레이를 넣어뒀지만, 사용자가 직접 트리거하는 `PortfolioService.getPortfolio()`는 그 대응이 빠진 채로 자산 목록을 순회하며 캐시 미스마다 KIS API를 지연 없이 연속 호출하고 있었습니다. 자산이 적을 땐 드러나지 않다가 50개를 넘기면서 순간 호출 수가 초당 제한을 넘긴 것입니다.
-- 해결: `KisStockService.fetchAndCacheDomestic`/`fetchAndCacheOverseas`가 실제로 KIS를 호출해 캐싱한 직후 `sleepToRespectKisRateLimit()`(300ms sleep)를 타도록 추가했습니다. 캐시 히트일 땐 이 딜레이를 거치지 않으므로 평소 응답 속도엔 영향이 없고, 캐시가 대거 미스되는 상황에서만 호출 간격이 생겨 제한을 넘지 않습니다.
-- 부수 효과: 캐시가 완전히 비어있는 상태(서버 막 재시작 등)에서 자산이 많은 계정이 포트폴리오를 열면, 자산 수 × 300ms만큼 첫 응답이 느려질 수 있습니다. → 아래 #7로 개선.
-
-### 7. 포트폴리오 조회가 캐시 미스 때문에 거의 항상 느림
-
-- 문제: #6을 고친 뒤에도 포트폴리오 조회가 매번 몇 초~수십 초씩 걸렸습니다.
-- 원인: Redis 캐시 TTL은 10초인데, 스케줄러가 자산 50개를 순회하며 자산마다 300ms씩 쉬다 보니 한 바퀴 도는 데 15초 이상 걸리고 다음 실행까지 대기(`fixedDelay=12000`)까지 더해지면 특정 자산의 캐시가 27초 넘게 방치됩니다. TTL(10초)이 스케줄러 한 바퀴 도는 시간보다 짧아서, 포트폴리오 조회 시점에 캐시가 이미 만료돼 있는 경우가 대부분이었습니다.
-- 해결: `kis:price:*`/`kis:change:*`(국내·해외 공통) 캐시 TTL을 10초 → 30초로 늘렸습니다. 스케줄러가 백그라운드에서 미리 채워둔 캐시를 포트폴리오 조회가 거의 항상 히트하게 되어, KIS를 직접 호출할 일이 크게 줄었습니다.
-- 트레이드오프: 화면에 보이는 가격이 최대 30초 정도 늦게 갱신될 수 있습니다. 실시간성보다 안정성을 우선한 선택입니다.
-
-### 8. 자산 등록 시 티커에 공백이 섞여 저장됨
-
-- 문제: DB를 확인하다가 `ticker` 컬럼에 `' 043260'`처럼 앞뒤 공백이 낀 채로 저장된 행을 발견했습니다.
-- 원인: `AssetService.registerAsset()`에서 `req.getTicker()` 값을 trim 없이 그대로(코인은 대문자 변환만 하고) 저장하고 있었습니다. 프론트 입력 폼에서 복사/붙여넣기 등으로 공백이 섞여 들어와도 걸러지지 않았습니다.
-- 해결: `ticker`를 저장하기 전에 `.trim()`을 거치도록 수정했습니다(`AssetService.java`). 이미 잘못 저장된 데이터는 운영 DB에서 `UPDATE assets SET ticker = TRIM(ticker) WHERE ticker <> TRIM(ticker);`로 직접 정리했습니다.
-
 ## 실행 방법
 
 로컬 개발은 MariaDB/Redis를 직접 띄우고, 배포는 Docker Compose를 씁니다(아래 [배포](#배포-docker-compose) 참고).
@@ -413,6 +357,62 @@ cd stockfolio
 ## 데모
 
 _(데모 GIF/스크린샷 추가 예정 — `docs/` 하위에 이미지 추가 후 이 섹션에 링크)_
+
+## 트러블슈팅
+
+### 1. KIS API 초당 요청 제한 초과
+
+- 문제: 보유 자산이 늘면서 스케줄러가 KIS API를 짧은 시간에 몰아 호출해 `EGW00201`(초당 거래건수 초과) 오류가 났습니다.
+- 원인: 자산 1건당 "현재가 조회"와 "등락률 조회"를 API 호출 2번으로 처리하고 있었고, 순회 중 호출 사이에 지연이 없어서 자산 수가 늘수록 순간 호출 수가 선형으로 늘어났습니다.
+- 해결:
+  - KIS 응답에 현재가(`stck_prpr`/`last`)와 등락률(`prdy_ctrt`/`rate`)이 같이 담겨 온다는 점을 이용해 `fetchAndCacheDomestic`/`fetchAndCacheOverseas`에서 호출을 1회로 합치고, 캐시 2개(`kis:price:*`, `kis:change:*`)를 동시에 채웠습니다. 자산당 호출 수가 절반으로 줄었습니다.
+  - 자산 순회 루프 안에 `Thread.sleep(300)`을 넣어 호출 간격을 두고, 갱신 주기도 8초에서 12초로 늘렸습니다.
+- 결과: 자산 10종목 이상 등록해도 초당 제한 오류 없이 시세가 갱신됩니다.
+
+### 2. WebSocket 콘솔 경고, SockJS 제거
+
+- 문제: 프론트엔드에서 `SockJS` + `Stomp.over(socket)` 조합을 쓰니 최신 `@stomp/stompjs`(v7)에서 구버전 API 경고가 나고 연결 안정성도 떨어졌습니다.
+- 원인: `Stomp.over()`는 v7에서 사실상 레거시 API이고, SockJS 폴백 계층이 불필요한 오버헤드를 더하고 있었습니다.
+- 해결: `@stomp/stompjs`의 `Client`로 raw WebSocket(`ws://.../ws-native`)에 직접 연결하도록 바꿨습니다. 이를 위해 백엔드 `WebSocketConfig`에 SockJS 없는 `/ws-native` STOMP 엔드포인트를 추가하고, `SecurityConfig`에서 `/ws-native/**`를 인증 예외로 열었습니다.
+- 부수 수정: Ant Design v6에서 `Drawer`의 `width` prop 직접 사용이 deprecated 경고를 내서 `styles.wrapper.width`로 옮겼습니다.
+
+### 3. 배포 환경에서 CORS 차단
+
+- 문제: 로컬에선 잘 되던 API가 배포 환경 프론트엔드 도메인에서 호출하니 CORS로 막혔습니다.
+- 원인: `CorsConfig`에 허용 Origin이 `http://localhost:5173`으로 하드코딩돼 있어서 배포 도메인이 반영되지 않았습니다.
+- 해결: 허용 Origin을 `ALLOWED_ORIGIN` 환경변수로 분리해(미설정 시 로컬 기본값 유지) 배포 환경별로 다른 도메인을 주입할 수 있게 바꿨습니다.
+
+### 4. `application-local.yaml`의 시크릿 커밋
+
+- 문제: 로컬 전용 설정 파일에 KIS `app-key`/`app-secret`, JWT 서명 시크릿을 평문으로 적었는데, `.gitignore` 등록 전 커밋(`feat: 한국투자증권 Open API 연동`)에서 이미 추적돼 원격 히스토리에 남아 있었습니다.
+- 해결: 파일을 `git rm --cached`로 추적 해제하고, `git filter-repo`로 전체 히스토리와 모든 브랜치에서 제거한 뒤 강제 푸시했습니다. KIS 앱 키와 JWT 시크릿은 전부 재발급/교체했습니다.
+- 교훈: `.gitignore`는 신규 추적만 막지 이미 추적 중인 파일엔 소급 적용되지 않습니다. 시크릿이 들어갈 수 있는 파일은 첫 커밋 전에 `.gitignore`부터 등록해야 합니다.
+
+### 5. Refresh Token 재발급 시 동일 밀리초 충돌
+
+- 문제: `AuthControllerIntegrationTest`에서 로그인 직후 바로 재발급을 호출하는 테스트를 짜다가, 재발급받은 토큰이 이전 토큰과 완전히 똑같이 나오는 경우를 발견했습니다.
+- 원인: `JwtProvider.generateRefreshToken()`이 `subject`, `issuedAt`(밀리초), `expiration`만으로 페이로드를 구성했는데, 두 호출이 같은 밀리초 안에 일어나면 페이로드가 같아져 HMAC 서명 결과(JWT 문자열)까지 동일해졌습니다. 이러면 "재발급마다 새 토큰으로 교체"라는 로테이션 전제가 깨집니다.
+- 해결: `Jwts.builder().id(UUID.randomUUID().toString())`로 `jti` claim을 추가해 같은 밀리초에 발급돼도 토큰이 항상 달라지게 수정했습니다(`JwtProvider.java`).
+
+### 6. 자산이 많아지자 포트폴리오 조회에서 다시 KIS 초당 제한 초과
+
+- 문제: 배포 후 실사용 중 자산을 50개 넘게 등록한 계정에서 자산을 등록/조회할 때마다 `GET /api/portfolio`가 500 에러를 냈습니다. 로그엔 트러블슈팅 #1과 같은 `EGW00201`(초당 거래건수 초과)이 찍혀 있었습니다.
+- 원인: #1에서 스케줄러(`PriceBroadcastScheduler`)에는 호출 간 300ms 딜레이를 넣어뒀지만, 사용자가 직접 트리거하는 `PortfolioService.getPortfolio()`는 그 대응이 빠진 채로 자산 목록을 순회하며 캐시 미스마다 KIS API를 지연 없이 연속 호출하고 있었습니다. 자산이 적을 땐 드러나지 않다가 50개를 넘기면서 순간 호출 수가 초당 제한을 넘긴 것입니다.
+- 해결: `KisStockService.fetchAndCacheDomestic`/`fetchAndCacheOverseas`가 실제로 KIS를 호출해 캐싱한 직후 `sleepToRespectKisRateLimit()`(300ms sleep)를 타도록 추가했습니다. 캐시 히트일 땐 이 딜레이를 거치지 않으므로 평소 응답 속도엔 영향이 없고, 캐시가 대거 미스되는 상황에서만 호출 간격이 생겨 제한을 넘지 않습니다.
+- 부수 효과: 캐시가 완전히 비어있는 상태(서버 막 재시작 등)에서 자산이 많은 계정이 포트폴리오를 열면, 자산 수 × 300ms만큼 첫 응답이 느려질 수 있습니다. → 아래 #7로 개선.
+
+### 7. 포트폴리오 조회가 캐시 미스 때문에 거의 항상 느림
+
+- 문제: #6을 고친 뒤에도 포트폴리오 조회가 매번 몇 초~수십 초씩 걸렸습니다.
+- 원인: Redis 캐시 TTL은 10초인데, 스케줄러가 자산 50개를 순회하며 자산마다 300ms씩 쉬다 보니 한 바퀴 도는 데 15초 이상 걸리고 다음 실행까지 대기(`fixedDelay=12000`)까지 더해지면 특정 자산의 캐시가 27초 넘게 방치됩니다. TTL(10초)이 스케줄러 한 바퀴 도는 시간보다 짧아서, 포트폴리오 조회 시점에 캐시가 이미 만료돼 있는 경우가 대부분이었습니다.
+- 해결: `kis:price:*`/`kis:change:*`(국내·해외 공통) 캐시 TTL을 10초 → 30초로 늘렸습니다. 스케줄러가 백그라운드에서 미리 채워둔 캐시를 포트폴리오 조회가 거의 항상 히트하게 되어, KIS를 직접 호출할 일이 크게 줄었습니다.
+- 트레이드오프: 화면에 보이는 가격이 최대 30초 정도 늦게 갱신될 수 있습니다. 실시간성보다 안정성을 우선한 선택입니다.
+
+### 8. 자산 등록 시 티커에 공백이 섞여 저장됨
+
+- 문제: DB를 확인하다가 `ticker` 컬럼에 `' 043260'`처럼 앞뒤 공백이 낀 채로 저장된 행을 발견했습니다.
+- 원인: `AssetService.registerAsset()`에서 `req.getTicker()` 값을 trim 없이 그대로(코인은 대문자 변환만 하고) 저장하고 있었습니다. 프론트 입력 폼에서 복사/붙여넣기 등으로 공백이 섞여 들어와도 걸러지지 않았습니다.
+- 해결: `ticker`를 저장하기 전에 `.trim()`을 거치도록 수정했습니다(`AssetService.java`). 이미 잘못 저장된 데이터는 운영 DB에서 `UPDATE assets SET ticker = TRIM(ticker) WHERE ticker <> TRIM(ticker);`로 직접 정리했습니다.
 
 ## 회고 / 향후 개선
 
