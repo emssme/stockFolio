@@ -157,18 +157,18 @@ function PortfolioPage() {
                         </div>
                     </div>
                     <div style={{ background: 'var(--surf)', border: '1px solid var(--bd)', borderRadius: 'var(--rad)', boxShadow: 'var(--shadow)', padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t3)' }}>오늘 손익</span>
-                        <span style={{ fontFamily: 'var(--mono)', fontSize: 21, fontWeight: 600, color: todayChange >= 0 ? 'var(--up)' : 'var(--dn)', ...maskStyle }}>
-                            {todayChange >= 0 ? '+' : ''}{fmt(todayChange)}
-                        </span>
-                        <span style={{ fontSize: 11.5, color: 'var(--t4)' }}>{fmt(todayChangeRate)}% · 전일 대비</span>
-                    </div>
-                    <div style={{ background: 'var(--surf)', border: '1px solid var(--bd)', borderRadius: 'var(--rad)', boxShadow: 'var(--shadow)', padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 7 }}>
                         <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t3)' }}>총 손익</span>
                         <span style={{ fontFamily: 'var(--mono)', fontSize: 21, fontWeight: 600, color: isUp ? 'var(--up)' : 'var(--dn)', ...maskStyle }}>
                             {isUp ? '+' : ''}{fmt(totalProfit)}
                         </span>
                         <span style={{ fontSize: 11.5, color: 'var(--t4)' }}>원금 대비 {fmt(totalProfitRate)}%</span>
+                    </div>
+                    <div style={{ background: 'var(--surf)', border: '1px solid var(--bd)', borderRadius: 'var(--rad)', boxShadow: 'var(--shadow)', padding: 'var(--pad)', display: 'flex', flexDirection: 'column', gap: 7 }}>
+                        <span style={{ fontSize: 12.5, fontWeight: 600, color: 'var(--t3)' }}>오늘 손익</span>
+                        <span style={{ fontFamily: 'var(--mono)', fontSize: 21, fontWeight: 600, color: todayChange >= 0 ? 'var(--up)' : 'var(--dn)', ...maskStyle }}>
+                            {todayChange >= 0 ? '+' : ''}{fmt(todayChange)}
+                        </span>
+                        <span style={{ fontSize: 11.5, color: 'var(--t4)' }}>{fmt(todayChangeRate)}% · 전일 대비</span>
                     </div>
                 </div>
             </div>
@@ -183,7 +183,7 @@ function PortfolioPage() {
                         </div>
                     </div>
                 </div>
-                <div data-sf="wide">
+                <div data-sf="wide" data-assets-view="table">
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 860 }}>
                         <thead>
                             <tr style={{ background: 'var(--surf2)' }}>
@@ -239,6 +239,58 @@ function PortfolioPage() {
                             })}
                         </tbody>
                     </table>
+                </div>
+
+                <div data-assets-view="cards" style={{ display: 'none', flexDirection: 'column' }}>
+                    {withShare.length === 0 ? (
+                        <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--t4)', fontSize: 13 }}>등록된 자산이 없습니다.</div>
+                    ) : withShare.map((a) => {
+                        const up = a.profit >= 0;
+                        return (
+                            <div key={a.assetId} style={{ padding: '14px var(--pad)', borderTop: '1px solid var(--bd2)', display: 'flex', flexDirection: 'column', gap: 11 }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 11 }}>
+                                    <div style={{ width: 32, height: 32, borderRadius: 9, background: up ? 'var(--upBg)' : 'var(--dnBg)', color: up ? 'var(--up)' : 'var(--dn)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 800, flex: 'none' }}>
+                                        {monogram(a.name)}
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 1, flex: 1, minWidth: 0 }}>
+                                        <span style={{ fontSize: 14, fontWeight: 600 }}>{a.name}</span>
+                                        <span style={{ fontSize: 11.5, color: 'var(--t4)', fontFamily: 'var(--mono)' }}>{a.ticker}{a.brokerage ? ` · ${a.brokerage}` : ''}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'flex-end' }}>
+                                        <span style={{ fontFamily: 'var(--mono)', fontSize: 'var(--num)', fontWeight: 600, color: up ? 'var(--up)' : 'var(--dn)', ...maskStyle }}>
+                                            {up ? '+' : ''}{fmt(a.profit)}
+                                        </span>
+                                        <span style={{ fontFamily: 'var(--mono)', fontSize: 11.5, color: up ? 'var(--up)' : 'var(--dn)' }}>{up ? '+' : ''}{fmt(a.profitRate)}%</span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12.5 }}>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--t4)' }}>수량</span>
+                                        <span style={{ fontFamily: 'var(--mono)' }}>{fmt(a.quantity)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--t4)' }}>현재가</span>
+                                        <span style={{ fontFamily: 'var(--mono)' }}>{fmt(a.currentPrice)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--t4)' }}>평균단가</span>
+                                        <span style={{ fontFamily: 'var(--mono)', ...maskStyle }}>{fmt(a.avgPurchasePrice)}</span>
+                                    </div>
+                                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                        <span style={{ color: 'var(--t4)' }}>평가금액</span>
+                                        <span style={{ fontFamily: 'var(--mono)', fontWeight: 600, ...maskStyle }}>{fmt(a.currentValue)}</span>
+                                    </div>
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <span style={{ fontSize: 11.5, color: 'var(--t4)', flex: 'none' }}>비중</span>
+                                    <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--bd2)', overflow: 'hidden' }}>
+                                        <div style={{ width: `${a.share}%`, height: '100%', background: up ? 'var(--up)' : 'var(--dn)' }} />
+                                    </div>
+                                    <span style={{ fontFamily: 'var(--mono)', fontSize: 12, color: 'var(--t3)', flex: 'none' }}>{fmt(a.share)}%</span>
+                                </div>
+                            </div>
+                        );
+                    })}
                 </div>
             </section>
         </>
