@@ -412,7 +412,7 @@ cd stockfolio
 
 ## 데모
 
-_(데모 GIF/스크린샷 추가 예정 — `docs/` 하위에 이미지 추가 후 이 섹션에 링크)_
+![StockFolio 대시보드](docs/stockfolio-dashboard.png)
 
 ## 회고 / 향후 개선
 
